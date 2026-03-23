@@ -66,15 +66,15 @@ export default function SalesLogForm({ onSuccess }: SalesLogFormProps) {
   const addItem = () => {
     if (!selectedProductId) { setError('Seleccioná un producto.'); return }
     const price = parseFloat(salePrice)
-    const qty = parseInt(quantity)
+    const qty = parseFloat(quantity)
     if (isNaN(price) || price <= 0) { setError('Precio inválido.'); return }
-    if (isNaN(qty) || qty < 1) { setError('Cantidad inválida.'); return }
+    if (isNaN(qty) || qty <= 0) { setError('Cantidad inválida.'); return }
 
     const product = products.find(p => p.id === selectedProductId)
     const newItem = {
       product_id: selectedProductId,
       product_name: product?.product_name,
-      quantity: qty,
+      quantity: Number(qty.toFixed(4)),
       unit_price: price,
       total_price: price * qty
     }
@@ -205,7 +205,7 @@ export default function SalesLogForm({ onSuccess }: SalesLogFormProps) {
         
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
           {/* Product Select */}
-          <div className="md:col-span-5 space-y-2 relative" ref={dropdownRef}>
+          <div className="md:col-span-4 space-y-2 relative" ref={dropdownRef}>
             <div className="relative group">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={16} />
               <input
@@ -257,12 +257,16 @@ export default function SalesLogForm({ onSuccess }: SalesLogFormProps) {
           </div>
 
           {/* Quantity */}
-          <div className="md:col-span-2 space-y-2">
+          <div className="md:col-span-3 space-y-2">
             <input
-              type="number"
-              min="1"
+              type="text"
+              placeholder="Cant. (Ej: 1.5)"
               value={quantity}
-              onChange={e => setQuantity(e.target.value)}
+              onChange={e => {
+                 let val = e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.')
+                 if (val.split('.').length > 2) val = val.replace(/\.+$/, '')
+                 setQuantity(val)
+              }}
               className="w-full px-3 py-3 bg-white dark:bg-slate-900 border border-transparent focus:border-indigo-500/30 rounded-xl transition-all font-bold text-sm outline-none shadow-sm text-center"
             />
           </div>
@@ -298,7 +302,7 @@ export default function SalesLogForm({ onSuccess }: SalesLogFormProps) {
                 {items.map((item, index) => (
                   <tr key={index} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors">
                     <td className="px-4 py-3 font-bold text-slate-700 dark:text-slate-300">{item.product_name}</td>
-                    <td className="px-4 py-3 text-center font-bold text-slate-600 dark:text-slate-400">x{item.quantity}</td>
+                    <td className="px-4 py-3 text-center font-bold text-slate-600 dark:text-slate-400">x {item.quantity}</td>
                     <td className="px-4 py-3 text-right font-medium text-slate-500">{formatCurrency(item.unit_price, profile?.currency_symbol || '$')}</td>
                     <td className="px-4 py-3 text-right font-black text-indigo-600 dark:text-indigo-400">{formatCurrency(item.total_price, profile?.currency_symbol || '$')}</td>
                     <td className="px-4 py-3 text-right">
