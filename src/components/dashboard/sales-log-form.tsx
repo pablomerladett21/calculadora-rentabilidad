@@ -306,7 +306,7 @@ export default function SalesLogForm({ onSuccess }: SalesLogFormProps) {
                         <button 
                           type="button" 
                           onClick={() => editItem(index)}
-                          className="p-2 text-slate-300 hover:text-indigo-500 transition-colors"
+                          className="p-2 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
                           title="Editar"
                         >
                           <Edit2 size={16} />
@@ -314,7 +314,7 @@ export default function SalesLogForm({ onSuccess }: SalesLogFormProps) {
                         <button 
                           type="button" 
                           onClick={() => removeItem(index)}
-                          className="p-2 text-slate-300 hover:text-red-500 transition-colors"
+                          className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                           title="Eliminar"
                         >
                           <Trash2 size={16} />
