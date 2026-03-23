@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { supabase } from '@/lib/supabase/client'
-import { ShoppingCart, Plus, X, Search, ChevronDown, Trash2, FileText, User } from 'lucide-react'
+import { ShoppingCart, Plus, X, Search, ChevronDown, Trash2, FileText, User, Edit2 } from 'lucide-react'
 import { useProfile } from '@/context/profile-context'
 import { formatCurrency } from '@/lib/utils'
 
@@ -90,6 +90,15 @@ export default function SalesLogForm({ onSuccess }: SalesLogFormProps) {
 
   const removeItem = (index: number) => {
     setItems(items.filter((_, i) => i !== index))
+  }
+
+  const editItem = (index: number) => {
+    const item = items[index]
+    setSelectedProductId(item.product_id)
+    setProductSearch(item.product_name)
+    setSalePrice(item.unit_price.toString())
+    setQuantity(item.quantity.toString())
+    removeItem(index)
   }
 
   const subtotal = items.reduce((sum, item) => sum + item.total_price, 0)
@@ -293,13 +302,24 @@ export default function SalesLogForm({ onSuccess }: SalesLogFormProps) {
                     <td className="px-4 py-3 text-right font-medium text-slate-500">{formatCurrency(item.unit_price, profile?.currency_symbol || '$')}</td>
                     <td className="px-4 py-3 text-right font-black text-indigo-600 dark:text-indigo-400">{formatCurrency(item.total_price, profile?.currency_symbol || '$')}</td>
                     <td className="px-4 py-3 text-right">
-                      <button 
-                        type="button" 
-                        onClick={() => removeItem(index)}
-                        className="p-2 text-slate-300 hover:text-red-500 transition-colors"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                      <div className="flex justify-end gap-1">
+                        <button 
+                          type="button" 
+                          onClick={() => editItem(index)}
+                          className="p-2 text-slate-300 hover:text-indigo-500 transition-colors"
+                          title="Editar"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        <button 
+                          type="button" 
+                          onClick={() => removeItem(index)}
+                          className="p-2 text-slate-300 hover:text-red-500 transition-colors"
+                          title="Eliminar"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
