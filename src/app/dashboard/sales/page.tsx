@@ -39,18 +39,22 @@ export default function SalesPage() {
 
     // Fetch summaries always for the cards
     const [todayRes, weekRes, monthRes, yearRes, listRes] = await Promise.all([
-      supabase.from('sales').select('total').eq('user_id', uid).gte('sold_at', startOf('day')),
-      supabase.from('sales').select('total').eq('user_id', uid).gte('sold_at', startOf('week')),
-      supabase.from('sales').select('total').eq('user_id', uid).gte('sold_at', startOf('month')),
-      supabase.from('sales').select('total').eq('user_id', uid).gte('sold_at', startOf('year')),
-      supabase.from('sales')
-        .select('*')
+      supabase.from('sales_orders').select('total_amount').eq('user_id', uid).eq('status', 'finalized').gte('created_at', startOf('day')),
+      supabase.from('sales_orders').select('total_amount').eq('user_id', uid).eq('status', 'finalized').gte('created_at', startOf('week')),
+      supabase.from('sales_orders').select('total_amount').eq('user_id', uid).eq('status', 'finalized').gte('created_at', startOf('month')),
+      supabase.from('sales_orders').select('total_amount').eq('user_id', uid).eq('status', 'finalized').gte('created_at', startOf('year')),
+      supabase.from('sales_orders')
+        .select(`
+          *,
+          items:sales_order_items(*)
+        `)
         .eq('user_id', uid)
-        .gte('sold_at', startOf(filterRange))
-        .order('sold_at', { ascending: false }),
+        .eq('status', 'finalized')
+        .gte('created_at', startOf(filterRange))
+        .order('created_at', { ascending: false }),
     ])
 
-    const sum = (rows: any[]) => (rows || []).reduce((a, r) => a + parseFloat(r.total), 0)
+    const sum = (rows: any[]) => (rows || []).reduce((a, r) => a + parseFloat(r.total_amount || 0), 0)
 
     setSummary({
       today: sum(todayRes.data || []),
@@ -66,13 +70,14 @@ export default function SalesPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('¿Eliminar esta venta?')) return
-    await supabase.from('sales').delete().eq('id', id)
+    await supabase.from('sales_orders').delete().eq('id', id)
     fetchAll()
   }
 
   const filteredSales = sales.filter(s => 
-    s.product_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (s.notes && s.notes.toLowerCase().includes(searchQuery.toLowerCase()))
+    (s.customer_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (s.notes && s.notes.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (s.items && s.items.some((i: any) => i.product_name.toLowerCase().includes(searchQuery.toLowerCase())))
   )
 
   const rangeLabels: Record<Range, string> = {
@@ -187,34 +192,49 @@ export default function SalesPage() {
                 <p className="text-xs mt-1">Probá cambiando el filtro o registrando una nueva.</p>
               </div>
             ) : (
-              filteredSales.map(sale => (
-                <div key={sale.id} className="group flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 rounded-2xl border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-all">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-white dark:bg-slate-900 rounded-xl flex items-center justify-center text-indigo-600 dark:text-indigo-400 flex-shrink-0 shadow-sm border border-slate-100 dark:border-slate-800">
-                      <ShoppingCart size={20} />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-black text-sm text-slate-900 dark:text-white">{sale.product_name}</p>
-                        <span className="text-[9px] font-black px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-500 rounded uppercase">
-                          {new Date(sale.sold_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })}
-                        </span>
+              filteredSales.map(order => (
+                <div key={order.id} className="group flex flex-col p-4 bg-slate-50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 rounded-2xl border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-all gap-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-white dark:bg-slate-900 rounded-xl flex items-center justify-center text-indigo-600 dark:text-indigo-400 flex-shrink-0 shadow-sm border border-slate-100 dark:border-slate-800">
+                        <ShoppingCart size={20} />
                       </div>
-                      <p className="text-[10px] text-slate-400 font-bold mt-0.5">
-                        {sale.quantity} unid. × {formatCurrency(sale.sale_price, profile?.currency_symbol || '$')}
-                        {sale.notes && <span className="ml-2 italic text-indigo-500/70">· {sale.notes}</span>}
-                      </p>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-black text-sm text-slate-900 dark:text-white">
+                            {order.customer_name ? `Venta a ${order.customer_name}` : 'Venta Registrada'}
+                          </p>
+                          <span className="text-[9px] font-black px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-500 rounded uppercase">
+                            {new Date(order.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 font-bold mt-0.5">
+                          {order.items?.length || 0} productos
+                          {order.notes && <span className="ml-2 italic text-indigo-500/70">· {order.notes}</span>}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <p className="text-lg font-black text-indigo-600 dark:text-indigo-400">{formatCurrency(order.total_amount, profile?.currency_symbol || '$')}</p>
+                      <button
+                        onClick={() => handleDelete(order.id)}
+                        className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl opacity-0 group-hover:opacity-100 transition-all"
+                      >
+                        <Trash2 size={18} />
+                      </button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <p className="text-lg font-black text-indigo-600 dark:text-indigo-400">{formatCurrency(sale.total, profile?.currency_symbol || '$')}</p>
-                    <button
-                      onClick={() => handleDelete(sale.id)}
-                      className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl opacity-0 group-hover:opacity-100 transition-all"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
+                  {/* Item Details */}
+                  {order.items && order.items.length > 0 && (
+                     <div className="pl-16 pr-4 space-y-1">
+                        {order.items.map((item: any, idx: number) => (
+                           <div key={idx} className="flex justify-between items-center py-1 border-t border-slate-100 dark:border-slate-800/50 first:border-0 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                              <span>{item.quantity}x {item.product_name}</span>
+                              <span>{formatCurrency(item.total_price, profile?.currency_symbol || '$')}</span>
+                           </div>
+                        ))}
+                     </div>
+                  )}
                 </div>
               ))
             )}
@@ -225,7 +245,7 @@ export default function SalesPage() {
               Mostrando: <span className="text-indigo-600">{rangeLabels[filterRange]}</span>
             </p>
             <p className="text-sm font-black text-slate-900 dark:text-white tracking-tight">
-              Total: {formatCurrency(filteredSales.reduce((a, s) => a + parseFloat(s.total), 0), profile?.currency_symbol || '$')}
+              Total: {formatCurrency(filteredSales.reduce((a, s) => a + parseFloat(s.total_amount || 0), 0), profile?.currency_symbol || '$')}
             </p>
           </div>
         </div>

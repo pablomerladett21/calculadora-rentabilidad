@@ -1,7 +1,8 @@
 import { useEffect, useState, useRef } from 'react'
 import { supabase } from '@/lib/supabase/client'
-import { ShoppingCart, Plus, X, Search, ChevronDown } from 'lucide-react'
+import { ShoppingCart, Plus, X, Search, ChevronDown, Trash2, FileText, User } from 'lucide-react'
 import { useProfile } from '@/context/profile-context'
+import { formatCurrency } from '@/lib/utils'
 
 interface SalesLogFormProps {
   onSuccess: () => void
@@ -10,12 +11,20 @@ interface SalesLogFormProps {
 export default function SalesLogForm({ onSuccess }: SalesLogFormProps) {
   const { profile } = useProfile()
   const [products, setProducts] = useState<any[]>([])
+  
+  // Current Item State (Draft)
   const [selectedProductId, setSelectedProductId] = useState('')
   const [productSearch, setProductSearch] = useState('')
   const [showProductDropdown, setShowProductDropdown] = useState(false)
   const [quantity, setQuantity] = useState('1')
   const [salePrice, setSalePrice] = useState('')
+  
+  // Cart State
+  const [items, setItems] = useState<any[]>([])
+  const [customerName, setCustomerName] = useState('')
+  const [customerPhone, setCustomerPhone] = useState('')
   const [notes, setNotes] = useState('')
+  
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   
@@ -54,41 +63,93 @@ export default function SalesLogForm({ onSuccess }: SalesLogFormProps) {
     setError('')
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    
-    const qty = parseInt(quantity)
-    const price = parseFloat(salePrice)
-
+  const addItem = () => {
     if (!selectedProductId) { setError('Seleccioná un producto.'); return }
-    if (isNaN(price) || price <= 0) { setError('Ingresá un precio válido.'); return }
-    if (isNaN(qty) || qty < 1) { setError('La cantidad debe ser al menos 1.'); return }
-
-    setLoading(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setLoading(false); return }
+    const price = parseFloat(salePrice)
+    const qty = parseInt(quantity)
+    if (isNaN(price) || price <= 0) { setError('Precio inválido.'); return }
+    if (isNaN(qty) || qty < 1) { setError('Cantidad inválida.'); return }
 
     const product = products.find(p => p.id === selectedProductId)
-    const { error: insertError } = await supabase.from('sales').insert({
-      user_id: user.id,
+    const newItem = {
       product_id: selectedProductId,
       product_name: product?.product_name,
-      sale_price: price,
       quantity: qty,
-      notes: notes.trim() || null,
-    })
+      unit_price: price,
+      total_price: price * qty
+    }
 
-    setLoading(false)
-    if (insertError) {
-      setError('Error al registrar la venta. Intentá de nuevo.')
-    } else {
-      setSelectedProductId('')
-      setProductSearch('')
-      setQuantity('1')
-      setSalePrice('')
+    setItems([...items, newItem])
+    // Reset draft
+    setSelectedProductId('')
+    setProductSearch('')
+    setQuantity('1')
+    setSalePrice('')
+    setError('')
+  }
+
+  const removeItem = (index: number) => {
+    setItems(items.filter((_, i) => i !== index))
+  }
+
+  const subtotal = items.reduce((sum, item) => sum + item.total_price, 0)
+
+  const handleSubmit = async (status: 'finalized' | 'quote') => {
+    if (items.length === 0) { setError('Agregá al menos un producto.'); return }
+    
+    setLoading(true)
+    setError('')
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('No user session')
+
+      // 1. Create Order Header
+      const { data: order, error: orderError } = await supabase
+        .from('sales_orders')
+        .insert({
+          user_id: user.id,
+          customer_name: customerName.trim() || null,
+          customer_phone: customerPhone.trim() || null,
+          status: status,
+          subtotal: subtotal,
+          total_amount: subtotal,
+          currency_symbol: profile?.currency_symbol || '$',
+          notes: notes.trim() || null,
+        })
+        .select()
+        .single()
+
+      if (orderError) throw orderError
+
+      // 2. Create Order Items
+      const orderItems = items.map(item => ({
+        order_id: order.id,
+        product_id: item.product_id,
+        product_name: item.product_name,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        total_price: item.total_price,
+      }))
+
+      const { error: itemsError } = await supabase
+        .from('sales_order_items')
+        .insert(orderItems)
+
+      if (itemsError) throw itemsError
+
+      // Success
+      setItems([])
+      setCustomerName('')
+      setCustomerPhone('')
       setNotes('')
       onSuccess()
+      alert(status === 'quote' ? 'Presupuesto guardado con éxito' : 'Venta registrada con éxito')
+    } catch (err: any) {
+      console.error(err)
+      setError('Error al procesar la operación. Verificá la base de datos.')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -97,144 +158,204 @@ export default function SalesLogForm({ onSuccess }: SalesLogFormProps) {
   )
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        
-        {/* Searchable Product Select */}
-        <div className="md:col-span-2 space-y-2 relative" ref={dropdownRef}>
-          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Producto</label>
-          <div className="relative group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={18} />
-            <input
-              type="text"
-              placeholder="Buscá un producto..."
-              value={productSearch}
-              onFocus={() => setShowProductDropdown(true)}
-              onChange={(e) => {
-                setProductSearch(e.target.value)
-                setSelectedProductId('') // Reset selected if typing manually
-                setShowProductDropdown(true)
-              }}
-              className="w-full pl-12 pr-10 py-3.5 bg-slate-50 dark:bg-slate-800 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 transition-all font-semibold text-slate-900 dark:text-white outline-none border-none text-sm"
-            />
-            <ChevronDown 
-              className={`absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition-transform ${showProductDropdown ? 'rotate-180' : ''}`} 
-              size={18} 
-            />
-          </div>
-          
-          {showProductDropdown && (
-            <div className="absolute z-50 w-full mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-h-60 overflow-y-auto animate-in zoom-in-95 duration-200">
-              {filteredProducts.length === 0 ? (
-                <p className="p-4 text-xs text-slate-400 italic">No se encontraron productos.</p>
-              ) : (
-                filteredProducts.map(p => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => handleProductSelect(p)}
-                    className="w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 text-sm font-semibold text-slate-700 dark:text-slate-300 transition-colors border-b border-slate-50 dark:border-slate-800 last:border-0"
-                  >
-                    {p.product_name}
-                    <span className="block text-[10px] text-slate-400 font-medium">Sugerido: ${p.suggested_price}</span>
-                  </button>
-                ))
-              )}
-            </div>
-          )}
-          
-          {products.length === 0 && !loading && (
-            <p className="text-xs text-amber-500 font-medium pt-1">
-              No tenés productos en el catálogo. Primero calculá el ROI de un producto.
-            </p>
-          )}
-        </div>
-
+    <div className="space-y-8 animate-in fade-in duration-500">
+      {/* 1. Customer Info */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Precio de Venta ({profile?.currency_symbol || '$'})</label>
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+            <User size={12} /> Cliente (Opcional)
+          </label>
           <input
             type="text"
-            inputMode="decimal"
-            value={salePrice}
-            onChange={e => {
-              const val = e.target.value.replace(/[^0-9.]/g, '')
-              setSalePrice(val)
-            }}
-            placeholder="0.00"
-            className="w-full px-4 py-3.5 bg-slate-50 dark:bg-slate-800 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 transition-all font-bold text-slate-900 dark:text-white outline-none border-none text-sm"
+            placeholder="Nombre del cliente"
+            value={customerName}
+            onChange={e => setCustomerName(e.target.value)}
+            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-sm outline-none"
           />
         </div>
-
         <div className="space-y-2">
-          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cantidad</label>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                const q = Math.max(1, (parseInt(quantity) || 1) - 1)
-                setQuantity(q.toString())
-              }}
-              className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-black text-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors flex items-center justify-center flex-shrink-0"
-            >
-              <X size={16} />
-            </button>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={quantity}
-              onChange={e => {
-                const val = e.target.value.replace(/[^0-9]/g, '')
-                setQuantity(val)
-              }}
-              className="flex-1 px-4 py-3.5 bg-slate-50 dark:bg-slate-800 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 transition-all font-bold text-slate-900 dark:text-white outline-none border-none text-sm text-center"
-            />
-            <button
-              type="button"
-              onClick={() => {
-                const q = (parseInt(quantity) || 0) + 1
-                setQuantity(q.toString())
-              }}
-              className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-black text-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors flex items-center justify-center flex-shrink-0"
-            >
-              <Plus size={16} />
-            </button>
-          </div>
-        </div>
-
-        <div className="md:col-span-2 space-y-2">
-          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nota (opcional)</label>
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+            <User size={12} /> Teléfono
+          </label>
           <input
             type="text"
-            value={notes}
-            onChange={e => setNotes(e.target.value)}
-            placeholder="Ej: venta en feria, cliente frecuente..."
-            className="w-full px-4 py-3.5 bg-slate-50 dark:bg-slate-800 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 transition-all font-medium text-slate-900 dark:text-white outline-none border-none text-sm"
+            placeholder="Ej: +54 9 11..."
+            value={customerPhone}
+            onChange={e => setCustomerPhone(e.target.value)}
+            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-sm outline-none"
           />
         </div>
       </div>
 
-      {/* Total preview */}
-      {selectedProductId && salePrice && (
-        <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100 dark:border-indigo-800/50 flex items-center justify-between">
-          <p className="text-xs font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">Total de esta venta</p>
-          <p className="text-2xl font-black text-indigo-600 dark:text-indigo-400">
-            ${(parseFloat(salePrice || '0') * (parseInt(quantity) || 0)).toFixed(2)}
-          </p>
+      {/* 2. Item Entry (Draft) */}
+      <div className="bg-slate-50/50 dark:bg-slate-800/30 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 space-y-4">
+        <div className="flex items-center gap-2 mb-2">
+           <Plus size={16} className="text-indigo-600" />
+           <p className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest">Agregar Producto</p>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+          {/* Product Select */}
+          <div className="md:col-span-5 space-y-2 relative" ref={dropdownRef}>
+            <div className="relative group">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={16} />
+              <input
+                type="text"
+                placeholder="Buscar producto..."
+                value={productSearch}
+                onFocus={() => setShowProductDropdown(true)}
+                onChange={(e) => {
+                  setProductSearch(e.target.value)
+                  setSelectedProductId('')
+                  setShowProductDropdown(true)
+                }}
+                className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-900 border border-transparent focus:border-indigo-500/30 rounded-xl transition-all font-medium text-sm outline-none shadow-sm"
+              />
+            </div>
+            {showProductDropdown && (
+              <div className="absolute z-50 w-full mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl max-h-48 overflow-y-auto">
+                {filteredProducts.length === 0 ? (
+                  <p className="p-4 text-xs text-slate-400 italic">No hay resultados.</p>
+                ) : (
+                  filteredProducts.map(p => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => handleProductSelect(p)}
+                      className="w-full text-left px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-sm font-medium text-slate-700 dark:text-slate-300 transition-colors"
+                    >
+                      {p.product_name}
+                      <span className="block text-[10px] text-slate-400">P. Sugerido: {formatCurrency(p.suggested_price, profile?.currency_symbol || '$')}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Price */}
+          <div className="md:col-span-3 space-y-2">
+            <div className="relative">
+               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">{profile?.currency_symbol || '$'}</span>
+               <input
+                 type="text"
+                 placeholder="Precio"
+                 value={salePrice}
+                 onChange={e => setSalePrice(e.target.value.replace(/[^0-9.]/g, ''))}
+                 className="w-full pl-8 pr-3 py-3 bg-white dark:bg-slate-900 border border-transparent focus:border-indigo-500/30 rounded-xl transition-all font-bold text-sm outline-none shadow-sm"
+               />
+            </div>
+          </div>
+
+          {/* Quantity */}
+          <div className="md:col-span-2 space-y-2">
+            <input
+              type="number"
+              min="1"
+              value={quantity}
+              onChange={e => setQuantity(e.target.value)}
+              className="w-full px-3 py-3 bg-white dark:bg-slate-900 border border-transparent focus:border-indigo-500/30 rounded-xl transition-all font-bold text-sm outline-none shadow-sm text-center"
+            />
+          </div>
+
+          {/* Add Button */}
+          <div className="md:col-span-2">
+            <button
+              type="button"
+              onClick={addItem}
+              className="w-full py-3 bg-indigo-600 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20 active:scale-95 flex items-center justify-center gap-2"
+            >
+              <Plus size={16} /> Añadir
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Items List / Cart */}
+      {items.length > 0 && (
+        <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
+          <div className="overflow-hidden rounded-2xl border border-slate-100 dark:border-slate-800">
+            <table className="w-full text-left text-sm border-collapse">
+              <thead>
+                <tr className="bg-slate-50 dark:bg-slate-800/50">
+                  <th className="px-4 py-3 font-black text-[10px] text-slate-400 uppercase tracking-widest">Producto</th>
+                  <th className="px-4 py-3 font-black text-[10px] text-slate-400 uppercase tracking-widest text-center">Cant.</th>
+                  <th className="px-4 py-3 font-black text-[10px] text-slate-400 uppercase tracking-widest text-right">Unit.</th>
+                  <th className="px-4 py-3 font-black text-[10px] text-slate-400 uppercase tracking-widest text-right">Total</th>
+                  <th className="px-4 py-3"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {items.map((item, index) => (
+                  <tr key={index} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors">
+                    <td className="px-4 py-3 font-bold text-slate-700 dark:text-slate-300">{item.product_name}</td>
+                    <td className="px-4 py-3 text-center font-bold text-slate-600 dark:text-slate-400">x{item.quantity}</td>
+                    <td className="px-4 py-3 text-right font-medium text-slate-500">{formatCurrency(item.unit_price, profile?.currency_symbol || '$')}</td>
+                    <td className="px-4 py-3 text-right font-black text-indigo-600 dark:text-indigo-400">{formatCurrency(item.total_price, profile?.currency_symbol || '$')}</td>
+                    <td className="px-4 py-3 text-right">
+                      <button 
+                        type="button" 
+                        onClick={() => removeItem(index)}
+                        className="p-2 text-slate-300 hover:text-red-500 transition-colors"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Summary */}
+          <div className="flex justify-between items-center p-6 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100 dark:border-indigo-900/30">
+            <div>
+              <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-1">Total acumulado</p>
+              <p className="text-3xl font-black text-indigo-600 dark:text-indigo-400 tracking-tighter">
+                {formatCurrency(subtotal, profile?.currency_symbol || '$')}
+              </p>
+            </div>
+            <div className="text-right">
+               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{items.length} productos</p>
+            </div>
+          </div>
         </div>
       )}
 
-      {error && (
-        <p className="text-xs text-red-500 font-bold px-1">{error}</p>
-      )}
+      {/* 4. Notes and Actions */}
+      <div className="space-y-4">
+        <textarea
+          placeholder="Notas adicionales..."
+          value={notes}
+          onChange={e => setNotes(e.target.value)}
+          className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-sm outline-none min-h-[80px] resize-none"
+        />
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full flex items-center justify-center gap-2 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-indigo-500/25 hover:bg-indigo-700 active:scale-95 transition-all text-sm disabled:opacity-60 disabled:cursor-not-allowed"
-      >
-        <ShoppingCart size={18} />
-        {loading ? 'Registrando...' : 'Registrar Venta'}
-      </button>
-    </form>
+        {error && (
+          <p className="text-xs text-red-500 font-bold px-2">{error}</p>
+        )}
+
+        <div className="grid grid-cols-2 gap-4 pt-2">
+          <button
+            type="button"
+            disabled={loading || items.length === 0}
+            onClick={() => handleSubmit('quote')}
+            className="flex items-center justify-center gap-2 py-4 border-2 border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-black rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-sm uppercase tracking-widest disabled:opacity-50"
+          >
+            <FileText size={18} />
+            Crear Presupuesto
+          </button>
+          <button
+            type="button"
+            disabled={loading || items.length === 0}
+            onClick={() => handleSubmit('finalized')}
+            className="flex items-center justify-center gap-2 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-indigo-500/25 hover:bg-indigo-700 active:scale-95 transition-all text-sm uppercase tracking-widest disabled:opacity-50"
+          >
+            <ShoppingCart size={18} />
+            {loading ? 'Procesando...' : 'Registrar Venta'}
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }

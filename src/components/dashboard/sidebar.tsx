@@ -10,7 +10,8 @@ import {
   X,
   Zap,
   Archive,
-  ShoppingCart
+  ShoppingCart,
+  FileText
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -20,6 +21,7 @@ const navigation = [
   { name: 'Calculadora ROI', href: '/dashboard/roi-calc', icon: Calculator },
   { name: 'Catálogo de Productos', href: '/dashboard/catalog', icon: Archive },
   { name: 'Registro de Ventas', href: '/dashboard/sales', icon: ShoppingCart },
+  { name: 'Presupuestos', href: '/dashboard/quotes', icon: FileText },
 ]
 
 interface SidebarProps {

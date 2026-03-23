@@ -58,9 +58,10 @@ export default function DashboardPage() {
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6)
       sevenDaysAgo.setHours(0, 0, 0, 0)
       const { data: salesRaw } = await supabase
-        .from('sales')
-        .select('total, sold_at')
-        .gte('sold_at', sevenDaysAgo.toISOString())
+        .from('sales_orders')
+        .select('total_amount, created_at')
+        .eq('status', 'finalized')
+        .gte('created_at', sevenDaysAgo.toISOString())
 
       // Build last 7 days array
       const salesMap: Record<string, number> = {}
@@ -71,9 +72,9 @@ export default function DashboardPage() {
         salesMap[key] = 0
       }
       ;(salesRaw || []).forEach(s => {
-        const d = new Date(s.sold_at)
+        const d = new Date(s.created_at)
         const key = d.toLocaleDateString('es-AR', { weekday: 'short', day: '2-digit' })
-        if (salesMap[key] !== undefined) salesMap[key] += parseFloat(s.total)
+        if (salesMap[key] !== undefined) salesMap[key] += parseFloat(s.total_amount || 0)
       })
       const salesTrend = Object.entries(salesMap).map(([day, total]) => ({ day, total }))
 
@@ -81,8 +82,8 @@ export default function DashboardPage() {
       const todayStart = new Date()
       todayStart.setHours(0, 0, 0, 0)
       const todaySales = (salesRaw || [])
-        .filter(s => new Date(s.sold_at) >= todayStart)
-        .reduce((a, s) => a + parseFloat(s.total), 0)
+        .filter(s => new Date(s.created_at) >= todayStart)
+        .reduce((a, s) => a + parseFloat(s.total_amount || 0), 0)
 
       const subTotal = (subs || []).reduce((acc, sub) => {
         const cost = parseFloat(sub.cost)
