@@ -25,8 +25,12 @@ export default function QuoteView({ quote, businessProfile, onClose }: QuoteView
               <FileText size={20} />
             </div>
             <div>
-              <h3 className="font-black text-slate-900 dark:text-white uppercase tracking-tight">Presupuesto #{quote.id.slice(0, 8)}</h3>
-              <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Vista Previa Profesional</p>
+              <h3 className="font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                {quote.status === 'quote' ? `Presupuesto #${quote.id.slice(0, 8)}` : `Comprobante #${quote.id.slice(0, 8)}`}
+              </h3>
+              <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">
+                Vista Previa Profesional
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -51,21 +55,23 @@ export default function QuoteView({ quote, businessProfile, onClose }: QuoteView
           {/* Business Logo & Info */}
           <div className="flex flex-col md:flex-row justify-between mb-12 gap-8">
             <div className="space-y-4">
-              {businessProfile?.business_logo_url ? (
-                <img src={businessProfile.business_logo_url} alt="Logo" className="h-16 w-auto object-contain" />
+              {businessProfile?.logo_url ? (
+                <img src={businessProfile.logo_url} alt="Logo" className="h-16 w-auto object-contain" />
               ) : (
-                <div className="h-16 w-16 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-300 font-black text-2xl">
+                <div className="h-16 w-16 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400 font-black text-2xl uppercase shadow-sm">
                   {businessProfile?.business_name?.[0] || 'B'}
                 </div>
               )}
               <div>
                 <h1 className="text-2xl font-black tracking-tighter text-indigo-600">{businessProfile?.business_name || 'Mi Negocio'}</h1>
                 <p className="text-sm text-slate-500 font-medium">{businessProfile?.business_address || 'Dirección no especificada'}</p>
-                <p className="text-sm text-slate-500 font-medium">WhatsApp: {businessProfile?.whatsapp_phone || 'N/A'}</p>
+                <p className="text-sm text-slate-500 font-medium">WhatsApp / Tel: {businessProfile?.whatsapp_phone || businessProfile?.business_phone || 'N/A'}</p>
               </div>
             </div>
             <div className="text-left md:text-right space-y-2 pt-2">
-              <div className="inline-block px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-[10px] font-black uppercase tracking-[0.2em]">Presupuesto</div>
+              <div className={`inline-block px-4 py-1.5 text-white rounded-lg text-[10px] font-black uppercase tracking-[0.2em] ${quote.status === 'quote' ? 'bg-indigo-600' : 'bg-emerald-600'}`}>
+                {quote.status === 'quote' ? 'Presupuesto' : 'Comprobante de Venta'}
+              </div>
               <p className="text-sm font-black text-slate-900">ID: {quote.id.slice(0, 12)}</p>
               <p className="text-sm text-slate-500 font-bold">Fecha: {new Date(quote.created_at).toLocaleDateString()}</p>
             </div>
@@ -123,11 +129,15 @@ export default function QuoteView({ quote, businessProfile, onClose }: QuoteView
             {quote.notes && (
               <div className="mb-6">
                 <p className="font-black uppercase tracking-widest mb-1">Notas:</p>
-                <p className="font-medium">{quote.notes}</p>
+                <p className="font-medium text-slate-600 text-xs">{quote.notes}</p>
               </div>
             )}
-            <p className="font-bold">Este presupuesto es válido por 15 días. Los precios están sujetos a cambios sin previo aviso.</p>
-            <p className="font-medium text-slate-300 mt-2">Documento generado por BizTracker ROI Calculator.</p>
+            {quote.status === 'quote' ? (
+              <p className="font-bold text-slate-500">Este presupuesto es válido por 15 días. Los precios están sujetos a cambios sin previo aviso.</p>
+            ) : (
+              <p className="font-bold text-slate-500">¡Gracias por su compra! Comprobante emitido exitosamente.</p>
+            )}
+            <p className="font-medium text-slate-400 mt-2">Documento generado con BizTracker ROI Calculator.</p>
           </div>
         </div>
       </div>

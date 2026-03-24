@@ -2,8 +2,18 @@
 
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
-import { Plus, Loader2, X, CreditCard } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { Plus, Loader2, X, Landmark } from 'lucide-react'
+
+// Tipos de gasto disponibles
+const EXPENSE_TYPES = [
+  { value: 'software',  label: '💻 Herramienta / Software' },
+  { value: 'utility',   label: '⚡ Servicio (Luz, Agua, Gas, etc.)' },
+  { value: 'tax',       label: '🏛 Impuesto (ARBA, AFIP, Monotributo...)' },
+  { value: 'insurance', label: '🛡 Seguro' },
+  { value: 'rent',      label: '🏠 Alquiler' },
+  { value: 'salary',    label: '👥 Sueldos / Personal' },
+  { value: 'other',     label: '📦 Otro' },
+]
 
 interface SubscriptionsFormProps {
   onSuccess: () => void
@@ -15,6 +25,7 @@ export default function SubscriptionsForm({ onSuccess, onCancel }: Subscriptions
   const [cost, setCost] = useState('')
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly')
   const [category, setCategory] = useState('')
+  const [expenseType, setExpenseType] = useState('software')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -34,13 +45,14 @@ export default function SubscriptionsForm({ onSuccess, onCancel }: Subscriptions
           cost: parseFloat(cost),
           billing_cycle: billingCycle,
           category,
+          expense_type: expenseType,
         },
       ])
 
       if (error) throw error
       onSuccess()
     } catch (err: any) {
-      setError(err.message || 'Error occurred while saving')
+      setError(err.message || 'Error al guardar el gasto')
     } finally {
       setLoading(false)
     }
@@ -51,11 +63,11 @@ export default function SubscriptionsForm({ onSuccess, onCancel }: Subscriptions
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-3">
           <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl text-indigo-600 dark:text-indigo-400">
-            <CreditCard size={24} />
+            <Landmark size={24} />
           </div>
           <div>
-            <h2 className="text-2xl font-black text-slate-900 dark:text-white">Nueva Suscripción</h2>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Agrega un nuevo gasto fijo</p>
+            <h2 className="text-2xl font-black text-slate-900 dark:text-white">Nuevo Gasto Fijo</h2>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Registrá un gasto recurrente</p>
           </div>
         </div>
         <button 
@@ -67,12 +79,26 @@ export default function SubscriptionsForm({ onSuccess, onCancel }: Subscriptions
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Tipo de gasto */}
+        <div className="space-y-2">
+          <label className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Tipo de gasto</label>
+          <select
+            value={expenseType}
+            onChange={(e) => setExpenseType(e.target.value)}
+            className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none dark:bg-slate-800/50 dark:border-slate-700 transition-all font-bold text-slate-900 dark:text-white appearance-none cursor-pointer"
+          >
+            {EXPENSE_TYPES.map(t => (
+              <option key={t.value} value={t.value}>{t.label}</option>
+            ))}
+          </select>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
-            <label className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Nombre del servicio</label>
+            <label className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Nombre / Proveedor</label>
             <input
               type="text"
-              placeholder="Ej: Adobe Creative Cloud"
+              placeholder="Ej: Edesur, AFIP, Adobe CC"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
@@ -98,7 +124,7 @@ export default function SubscriptionsForm({ onSuccess, onCancel }: Subscriptions
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
-            <label className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Ciclo de facturación</label>
+            <label className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Frecuencia</label>
             <select
               value={billingCycle}
               onChange={(e) => setBillingCycle(e.target.value as 'monthly' | 'yearly')}
@@ -109,10 +135,10 @@ export default function SubscriptionsForm({ onSuccess, onCancel }: Subscriptions
             </select>
           </div>
           <div className="space-y-2">
-            <label className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Categoría</label>
+            <label className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Descripción / Detalle</label>
             <input
               type="text"
-              placeholder="Ej: Diseño, Hosting, Marketing"
+              placeholder="Ej: Plan Pro, 3 empleados..."
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none dark:bg-slate-800/50 dark:border-slate-700 transition-all font-medium text-slate-950 dark:text-white"
@@ -140,7 +166,7 @@ export default function SubscriptionsForm({ onSuccess, onCancel }: Subscriptions
             className="flex items-center justify-center gap-3 px-10 py-4 bg-indigo-600 text-white font-black text-sm uppercase tracking-widest rounded-2xl shadow-xl shadow-indigo-500/25 hover:bg-indigo-700 transition-all active:scale-[0.98] disabled:opacity-50"
           >
             {loading ? <Loader2 size={20} className="animate-spin" /> : <Plus size={20} />}
-            Guardar Suscripción
+            Guardar Gasto
           </button>
         </div>
       </form>

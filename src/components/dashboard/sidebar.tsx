@@ -4,20 +4,20 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { 
   LayoutDashboard, 
-  CreditCard, 
   Calculator, 
   Settings,
   X,
   Zap,
   Archive,
   ShoppingCart,
-  FileText
+  FileText,
+  Landmark
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const navigation = [
   { name: 'Resumen', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Suscripciones', href: '/dashboard/subscriptions', icon: CreditCard },
+  { name: 'Gastos Fijos', href: '/dashboard/subscriptions', icon: Landmark },
   { name: 'Calculadora ROI', href: '/dashboard/roi-calc', icon: Calculator },
   { name: 'Catálogo de Productos', href: '/dashboard/catalog', icon: Archive },
   { name: 'Registro de Ventas', href: '/dashboard/sales', icon: ShoppingCart },

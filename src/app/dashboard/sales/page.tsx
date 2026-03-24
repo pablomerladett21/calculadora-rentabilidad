@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase/client'
-import { ShoppingCart, Trash2, Sparkles, TrendingUp, Calendar, BarChart3, Star, Search, Filter, History } from 'lucide-react'
+import { ShoppingCart, Trash2, Sparkles, TrendingUp, Calendar, BarChart3, Star, Search, Filter, History, Printer } from 'lucide-react'
 import SalesLogForm from '@/components/dashboard/sales-log-form'
+import QuoteView from '@/components/dashboard/quote-view'
 import { formatCurrency } from '@/lib/utils'
 import { useProfile } from '@/context/profile-context'
 
@@ -29,6 +30,7 @@ export default function SalesPage() {
   const [loading, setLoading] = useState(true)
   const [filterRange, setFilterRange] = useState<Range>('day')
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedSale, setSelectedSale] = useState<any>(null)
 
   const fetchAll = useCallback(async () => {
     setLoading(true)
@@ -214,13 +216,21 @@ export default function SalesPage() {
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <p className="text-lg font-black text-indigo-600 dark:text-indigo-400">{formatCurrency(order.total_amount, profile?.currency_symbol || '$')}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-lg font-black text-indigo-600 dark:text-indigo-400 mr-2">{formatCurrency(order.total_amount, profile?.currency_symbol || '$')}</p>
+                      <button
+                        onClick={() => setSelectedSale(order)}
+                        className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-xl transition-all border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm"
+                        title="Ver Comprobante / Imprimir"
+                      >
+                        <Printer size={16} />
+                      </button>
                       <button
                         onClick={() => handleDelete(order.id)}
-                        className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl opacity-0 group-hover:opacity-100 transition-all"
+                        className="p-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm"
+                        title="Eliminar Venta"
                       >
-                        <Trash2 size={18} />
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   </div>
@@ -250,6 +260,14 @@ export default function SalesPage() {
           </div>
         </div>
       </div>
+
+      {selectedSale && (
+        <QuoteView 
+          quote={selectedSale} 
+          businessProfile={profile} 
+          onClose={() => setSelectedSale(null)} 
+        />
+      )}
     </div>
   )
 }

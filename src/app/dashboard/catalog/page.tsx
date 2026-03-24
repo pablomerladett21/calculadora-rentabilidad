@@ -150,7 +150,7 @@ export default function CatalogPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 pb-12">
             {filteredProducts.map((product) => (
               <div key={product.id} className="group relative bg-white dark:bg-slate-900/40 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-800 hover:border-indigo-500/50 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 overflow-hidden">
-                <div className="absolute top-0 right-0 p-6 opacity-0 group-hover:opacity-100 transition-all flex gap-2">
+                <div className="absolute top-0 right-0 p-6 flex gap-2">
                   <button 
                     onClick={() => setEditingProduct(product)}
                     className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-xl transition-colors"
@@ -234,13 +234,15 @@ export default function CatalogPage() {
                   <div className="flex items-center gap-2">
                     <button 
                       onClick={() => setEditingProduct(product)}
-                      className="p-2.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-xl transition-all opacity-0 group-hover:opacity-100"
+                      className="p-2.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-xl transition-all"
+                      title="Editar Producto"
                     >
                       <Edit2 size={20} />
                     </button>
                     <button 
                       onClick={() => handleDelete(product.id)}
-                      className="p-2.5 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all opacity-0 group-hover:opacity-100"
+                      className="p-2.5 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all"
+                      title="Eliminar"
                     >
                       <Trash2 size={20} />
                     </button>

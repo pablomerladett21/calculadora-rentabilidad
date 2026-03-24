@@ -2,7 +2,18 @@
 
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
-import { X, Save, Loader2, CreditCard } from 'lucide-react'
+import { X, Save, Loader2, Landmark } from 'lucide-react'
+
+// Tipos de gasto disponibles (igual que en el formulario de creación)
+const EXPENSE_TYPES = [
+  { value: 'software',  label: '💻 Herramienta / Software' },
+  { value: 'utility',   label: '⚡ Servicio (Luz, Agua, Gas, etc.)' },
+  { value: 'tax',       label: '🏛 Impuesto (ARBA, AFIP, Monotributo...)' },
+  { value: 'insurance', label: '🛡 Seguro' },
+  { value: 'rent',      label: '🏠 Alquiler' },
+  { value: 'salary',    label: '👥 Sueldos / Personal' },
+  { value: 'other',     label: '📦 Otro' },
+]
 
 interface EditSubscriptionModalProps {
   subscription: any
@@ -15,6 +26,7 @@ export default function EditSubscriptionModal({ subscription, onSuccess, onClose
   const [cost, setCost] = useState(subscription.cost.toString())
   const [billingCycle, setBillingCycle] = useState(subscription.billing_cycle)
   const [category, setCategory] = useState(subscription.category || '')
+  const [expenseType, setExpenseType] = useState(subscription.expense_type || 'software')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -31,6 +43,7 @@ export default function EditSubscriptionModal({ subscription, onSuccess, onClose
           cost: parseFloat(cost) || 0,
           billing_cycle: billingCycle,
           category: category || null,
+          expense_type: expenseType,
         })
         .eq('id', subscription.id)
 
@@ -38,7 +51,7 @@ export default function EditSubscriptionModal({ subscription, onSuccess, onClose
       onSuccess()
       onClose()
     } catch (err: any) {
-      setError(err.message || 'Error updating subscription')
+      setError(err.message || 'Error al actualizar el gasto')
     } finally {
       setLoading(false)
     }
@@ -50,10 +63,10 @@ export default function EditSubscriptionModal({ subscription, onSuccess, onClose
         <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/10">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-indigo-600 rounded-xl text-white">
-              <CreditCard size={20} />
+              <Landmark size={20} />
             </div>
             <div>
-              <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Editar Suscripción</h2>
+              <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Editar Gasto Fijo</h2>
             </div>
           </div>
           <button onClick={onClose} className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all">
@@ -62,9 +75,23 @@ export default function EditSubscriptionModal({ subscription, onSuccess, onClose
         </div>
 
         <form onSubmit={handleUpdate} className="p-8 space-y-6">
+          {/* Tipo de gasto */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Tipo de gasto</label>
+            <select
+              value={expenseType}
+              onChange={(e) => setExpenseType(e.target.value)}
+              className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 outline-none font-bold transition-all appearance-none cursor-pointer"
+            >
+              {EXPENSE_TYPES.map(t => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+          </div>
+
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Proveedor / Servicio</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Nombre / Proveedor</label>
               <input
                 type="text"
                 value={name}
@@ -87,7 +114,7 @@ export default function EditSubscriptionModal({ subscription, onSuccess, onClose
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Ciclo</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Frecuencia</label>
                 <select
                   value={billingCycle}
                   onChange={(e) => setBillingCycle(e.target.value)}
@@ -100,10 +127,10 @@ export default function EditSubscriptionModal({ subscription, onSuccess, onClose
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Categoría</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Descripción / Detalle</label>
               <input
                 type="text"
-                placeholder="Ej: Software, Local, Marketing"
+                placeholder="Ej: Plan Pro, 3 empleados..."
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 outline-none font-medium transition-all"

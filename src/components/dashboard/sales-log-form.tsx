@@ -6,9 +6,10 @@ import { formatCurrency } from '@/lib/utils'
 
 interface SalesLogFormProps {
   onSuccess: () => void
+  mode?: 'sale' | 'quote'
 }
 
-export default function SalesLogForm({ onSuccess }: SalesLogFormProps) {
+export default function SalesLogForm({ onSuccess, mode = 'sale' }: SalesLogFormProps) {
   const { profile } = useProfile()
   const [products, setProducts] = useState<any[]>([])
   
@@ -103,7 +104,7 @@ export default function SalesLogForm({ onSuccess }: SalesLogFormProps) {
 
   const subtotal = items.reduce((sum, item) => sum + item.total_price, 0)
 
-  const handleSubmit = async (status: 'finalized' | 'quote') => {
+  const handleSubmit = async (submitStatus: 'finalized' | 'quote') => {
     if (items.length === 0) { setError('Agregá al menos un producto.'); return }
     
     setLoading(true)
@@ -113,6 +114,10 @@ export default function SalesLogForm({ onSuccess }: SalesLogFormProps) {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('No user session')
 
+      // Si el form está en modo 'quote', forzar el estado a 'quote' siempre,
+      // a menos de que en un futuro decidamos que desde quotes se pueda hacer una venta directa.
+      const finalStatus = mode === 'quote' ? 'quote' : submitStatus
+
       // 1. Create Order Header
       const { data: order, error: orderError } = await supabase
         .from('sales_orders')
@@ -120,7 +125,7 @@ export default function SalesLogForm({ onSuccess }: SalesLogFormProps) {
           user_id: user.id,
           customer_name: customerName.trim() || null,
           customer_phone: customerPhone.trim() || null,
-          status: status,
+          status: finalStatus,
           subtotal: subtotal,
           total_amount: subtotal,
           currency_symbol: profile?.currency_symbol || '$',
@@ -153,7 +158,7 @@ export default function SalesLogForm({ onSuccess }: SalesLogFormProps) {
       setCustomerPhone('')
       setNotes('')
       onSuccess()
-      alert(status === 'quote' ? 'Presupuesto guardado con éxito' : 'Venta registrada con éxito')
+      alert(finalStatus === 'quote' ? 'Presupuesto guardado con éxito' : 'Venta registrada con éxito')
     } catch (err: any) {
       console.error(err)
       setError('Error al procesar la operación. Verificá la base de datos.')
@@ -360,24 +365,38 @@ export default function SalesLogForm({ onSuccess }: SalesLogFormProps) {
         )}
 
         <div className="grid grid-cols-2 gap-4 pt-2">
-          <button
-            type="button"
-            disabled={loading || items.length === 0}
-            onClick={() => handleSubmit('quote')}
-            className="flex items-center justify-center gap-2 py-4 border-2 border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-black rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-sm uppercase tracking-widest disabled:opacity-50"
-          >
-            <FileText size={18} />
-            Crear Presupuesto
-          </button>
-          <button
-            type="button"
-            disabled={loading || items.length === 0}
-            onClick={() => handleSubmit('finalized')}
-            className="flex items-center justify-center gap-2 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-indigo-500/25 hover:bg-indigo-700 active:scale-95 transition-all text-sm uppercase tracking-widest disabled:opacity-50"
-          >
-            <ShoppingCart size={18} />
-            {loading ? 'Procesando...' : 'Registrar Venta'}
-          </button>
+          {mode === 'sale' ? (
+            <>
+              <button
+                type="button"
+                disabled={loading || items.length === 0}
+                onClick={() => handleSubmit('quote')}
+                className="flex items-center justify-center gap-2 py-4 border-2 border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-black rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-sm uppercase tracking-widest disabled:opacity-50"
+              >
+                <FileText size={18} />
+                Crear Presupuesto
+              </button>
+              <button
+                type="button"
+                disabled={loading || items.length === 0}
+                onClick={() => handleSubmit('finalized')}
+                className="flex items-center justify-center gap-2 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-indigo-500/25 hover:bg-indigo-700 active:scale-95 transition-all text-sm uppercase tracking-widest disabled:opacity-50"
+              >
+                <ShoppingCart size={18} />
+                {loading ? 'Procesando...' : 'Registrar Venta'}
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              disabled={loading || items.length === 0}
+              onClick={() => handleSubmit('quote')}
+              className="col-span-2 flex items-center justify-center gap-2 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-indigo-500/25 hover:bg-indigo-700 active:scale-95 transition-all text-sm uppercase tracking-widest disabled:opacity-50"
+            >
+              <FileText size={18} />
+              {loading ? 'Procesando...' : 'Guardar Cotización'}
+            </button>
+          )}
         </div>
       </div>
     </div>
