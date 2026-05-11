@@ -1,8 +1,24 @@
+'use client'
+
 import { useEffect, useState, useRef } from 'react'
 import { supabase } from '@/lib/supabase/client'
-import { ShoppingCart, Plus, X, Search, ChevronDown, Trash2, FileText, User, Edit2 } from 'lucide-react'
+import { ShoppingCart, Plus, X, Search, Trash2, FileText, User, Edit2, AlertTriangle } from 'lucide-react'
 import { useProfile } from '@/context/profile-context'
 import { formatCurrency } from '@/lib/utils'
+import { z } from 'zod'
+
+const saleSchema = z.object({
+  customer_name: z.string().max(100).optional().nullable(),
+  customer_phone: z.string().max(50).optional().nullable(),
+  items: z.array(z.object({
+    product_id: z.string().uuid(),
+    product_name: z.string(),
+    quantity: z.number().positive(),
+    unit_price: z.number().min(0),
+    total_price: z.number().min(0),
+  })).min(1, 'Agregá al menos un producto'),
+})
+
 
 interface SalesLogFormProps {
   onSuccess: () => void
@@ -13,14 +29,12 @@ export default function SalesLogForm({ onSuccess, mode = 'sale' }: SalesLogFormP
   const { profile } = useProfile()
   const [products, setProducts] = useState<any[]>([])
   
-  // Current Item State (Draft)
   const [selectedProductId, setSelectedProductId] = useState('')
   const [productSearch, setProductSearch] = useState('')
   const [showProductDropdown, setShowProductDropdown] = useState(false)
   const [quantity, setQuantity] = useState('1')
   const [salePrice, setSalePrice] = useState('')
   
-  // Cart State
   const [items, setItems] = useState<any[]>([])
   const [customerName, setCustomerName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
@@ -28,7 +42,7 @@ export default function SalesLogForm({ onSuccess, mode = 'sale' }: SalesLogFormP
   
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  
+
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -37,7 +51,7 @@ export default function SalesLogForm({ onSuccess, mode = 'sale' }: SalesLogFormP
       if (!user) return
       const { data } = await supabase
         .from('products_roi')
-        .select('id, product_name, suggested_price')
+        .select('id, product_name, suggested_price, stock_quantity, stock_alert_threshold')
         .eq('user_id', user.id)
         .order('product_name')
       setProducts(data || [])
@@ -45,7 +59,6 @@ export default function SalesLogForm({ onSuccess, mode = 'sale' }: SalesLogFormP
     fetchProducts()
   }, [])
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -72,16 +85,18 @@ export default function SalesLogForm({ onSuccess, mode = 'sale' }: SalesLogFormP
     if (isNaN(qty) || qty <= 0) { setError('Cantidad inválida.'); return }
 
     const product = products.find(p => p.id === selectedProductId)
+    const stock = product?.stock_quantity ?? 0
+
     const newItem = {
       product_id: selectedProductId,
       product_name: product?.product_name,
       quantity: Number(qty.toFixed(4)),
       unit_price: price,
-      total_price: price * qty
+      total_price: price * qty,
+      available_stock: stock,
     }
 
     setItems([...items, newItem])
-    // Reset draft
     setSelectedProductId('')
     setProductSearch('')
     setQuantity('1')
@@ -104,27 +119,32 @@ export default function SalesLogForm({ onSuccess, mode = 'sale' }: SalesLogFormP
 
   const subtotal = items.reduce((sum, item) => sum + item.total_price, 0)
 
+  // Check if any item has insufficient stock
+  const hasStockWarning = mode === 'sale' && items.some(item => item.quantity > (item.available_stock ?? 0))
+
   const handleSubmit = async (submitStatus: 'finalized' | 'quote') => {
-    if (items.length === 0) { setError('Agregá al menos un producto.'); return }
-    
     setLoading(true)
     setError('')
 
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('No user session')
+      // Zod Validation
+      const validatedData = saleSchema.parse({
+        customer_name: customerName.trim() || null,
+        customer_phone: customerPhone.trim() || null,
+        items,
+      })
 
-      // Si el form está en modo 'quote', forzar el estado a 'quote' siempre,
-      // a menos de que en un futuro decidamos que desde quotes se pueda hacer una venta directa.
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('No hay una sesión activa')
+
       const finalStatus = mode === 'quote' ? 'quote' : submitStatus
 
-      // 1. Create Order Header
       const { data: order, error: orderError } = await supabase
         .from('sales_orders')
         .insert({
           user_id: user.id,
-          customer_name: customerName.trim() || null,
-          customer_phone: customerPhone.trim() || null,
+          customer_name: validatedData.customer_name,
+          customer_phone: validatedData.customer_phone,
           status: finalStatus,
           subtotal: subtotal,
           total_amount: subtotal,
@@ -136,7 +156,7 @@ export default function SalesLogForm({ onSuccess, mode = 'sale' }: SalesLogFormP
 
       if (orderError) throw orderError
 
-      // 2. Create Order Items
+
       const orderItems = items.map(item => ({
         order_id: order.id,
         product_id: item.product_id,
@@ -152,7 +172,29 @@ export default function SalesLogForm({ onSuccess, mode = 'sale' }: SalesLogFormP
 
       if (itemsError) throw itemsError
 
-      // Success
+      // Descontar stock solo si la venta se finalizó
+      if (finalStatus === 'finalized') {
+        for (const item of items) {
+          const product = products.find(p => p.id === item.product_id)
+          const currentStock = product?.stock_quantity ?? 0
+          const newStock = Math.max(0, currentStock - item.quantity)
+
+          await supabase
+            .from('products_roi')
+            .update({ stock_quantity: newStock })
+            .eq('id', item.product_id)
+
+          await supabase.from('stock_movements').insert({
+            user_id: user.id,
+            product_id: item.product_id,
+            order_id: order.id,
+            movement_type: 'out',
+            quantity: item.quantity,
+            reason: `Venta #${order.id.slice(0, 8)}`,
+          })
+        }
+      }
+
       setItems([])
       setCustomerName('')
       setCustomerPhone('')
@@ -160,8 +202,12 @@ export default function SalesLogForm({ onSuccess, mode = 'sale' }: SalesLogFormP
       onSuccess()
       alert(finalStatus === 'quote' ? 'Presupuesto guardado con éxito' : 'Venta registrada con éxito')
     } catch (err: any) {
-      console.error(err)
-      setError('Error al procesar la operación. Verificá la base de datos.')
+      if (err instanceof z.ZodError) {
+        setError(err.issues[0].message)
+      } else {
+        console.error(err)
+        setError('Error al procesar la operación. Verificá la base de datos.')
+      }
     } finally {
       setLoading(false)
     }
@@ -201,11 +247,11 @@ export default function SalesLogForm({ onSuccess, mode = 'sale' }: SalesLogFormP
         </div>
       </div>
 
-      {/* 2. Item Entry (Draft) */}
+      {/* 2. Item Entry */}
       <div className="bg-slate-50/50 dark:bg-slate-800/30 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 space-y-4">
         <div className="flex items-center gap-2 mb-2">
-           <Plus size={16} className="text-indigo-600" />
-           <p className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest">Agregar Producto</p>
+          <Plus size={16} className="text-indigo-600" />
+          <p className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest">Agregar Producto</p>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
@@ -231,17 +277,25 @@ export default function SalesLogForm({ onSuccess, mode = 'sale' }: SalesLogFormP
                 {filteredProducts.length === 0 ? (
                   <p className="p-4 text-xs text-slate-400 italic">No hay resultados.</p>
                 ) : (
-                  filteredProducts.map(p => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => handleProductSelect(p)}
-                      className="w-full text-left px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-sm font-medium text-slate-700 dark:text-slate-300 transition-colors"
-                    >
-                      {p.product_name}
-                      <span className="block text-[10px] text-slate-400">P. Sugerido: {formatCurrency(p.suggested_price, profile?.currency_symbol || '$')}</span>
-                    </button>
-                  ))
+                  filteredProducts.map(p => {
+                    const stock = p.stock_quantity ?? 0
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => handleProductSelect(p)}
+                        className="w-full text-left px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-sm font-medium text-slate-700 dark:text-slate-300 transition-colors"
+                      >
+                        {p.product_name}
+                        <span className="block text-[10px] text-slate-400 mt-0.5 flex items-center gap-2">
+                          P. Sugerido: {formatCurrency(p.suggested_price, profile?.currency_symbol || '$')}
+                          <span className={`ml-2 font-black ${stock === 0 ? 'text-red-500' : stock <= (p.stock_alert_threshold ?? 5) ? 'text-amber-500' : 'text-emerald-600'}`}>
+                            · Stock: {stock}
+                          </span>
+                        </span>
+                      </button>
+                    )
+                  })
                 )}
               </div>
             )}
@@ -250,14 +304,14 @@ export default function SalesLogForm({ onSuccess, mode = 'sale' }: SalesLogFormP
           {/* Price */}
           <div className="md:col-span-3 space-y-2">
             <div className="relative">
-               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">{profile?.currency_symbol || '$'}</span>
-               <input
-                 type="text"
-                 placeholder="Precio"
-                 value={salePrice}
-                 onChange={e => setSalePrice(e.target.value.replace(/[^0-9.]/g, ''))}
-                 className="w-full pl-8 pr-3 py-3 bg-white dark:bg-slate-900 border border-transparent focus:border-indigo-500/30 rounded-xl transition-all font-bold text-sm outline-none shadow-sm"
-               />
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">{profile?.currency_symbol || '$'}</span>
+              <input
+                type="text"
+                placeholder="Precio"
+                value={salePrice}
+                onChange={e => setSalePrice(e.target.value.replace(/[^0-9.]/g, ''))}
+                className="w-full pl-8 pr-3 py-3 bg-white dark:bg-slate-900 border border-transparent focus:border-indigo-500/30 rounded-xl transition-all font-bold text-sm outline-none shadow-sm"
+              />
             </div>
           </div>
 
@@ -268,9 +322,9 @@ export default function SalesLogForm({ onSuccess, mode = 'sale' }: SalesLogFormP
               placeholder="Cant. (Ej: 1.5)"
               value={quantity}
               onChange={e => {
-                 let val = e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.')
-                 if (val.split('.').length > 2) val = val.replace(/\.+$/, '')
-                 setQuantity(val)
+                let val = e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.')
+                if (val.split('.').length > 2) val = val.replace(/\.+$/, '')
+                setQuantity(val)
               }}
               className="w-full px-3 py-3 bg-white dark:bg-slate-900 border border-transparent focus:border-indigo-500/30 rounded-xl transition-all font-bold text-sm outline-none shadow-sm text-center"
             />
@@ -289,6 +343,16 @@ export default function SalesLogForm({ onSuccess, mode = 'sale' }: SalesLogFormP
         </div>
       </div>
 
+      {/* Stock warning */}
+      {hasStockWarning && (
+        <div className="flex items-center gap-3 p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/30 rounded-2xl animate-in slide-in-from-top-2 duration-300">
+          <AlertTriangle size={18} className="text-amber-500 flex-shrink-0" />
+          <p className="text-xs font-bold text-amber-700 dark:text-amber-400">
+            Algunos productos tienen cantidad mayor al stock disponible. La venta se registrará de todas formas, pero el stock quedará en 0.
+          </p>
+        </div>
+      )}
+
       {/* 3. Items List / Cart */}
       {items.length > 0 && (
         <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
@@ -304,39 +368,36 @@ export default function SalesLogForm({ onSuccess, mode = 'sale' }: SalesLogFormP
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {items.map((item, index) => (
-                  <tr key={index} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors">
-                    <td className="px-4 py-3 font-bold text-slate-700 dark:text-slate-300">{item.product_name}</td>
-                    <td className="px-4 py-3 text-center font-bold text-slate-600 dark:text-slate-400">x {item.quantity}</td>
-                    <td className="px-4 py-3 text-right font-medium text-slate-500">{formatCurrency(item.unit_price, profile?.currency_symbol || '$')}</td>
-                    <td className="px-4 py-3 text-right font-black text-indigo-600 dark:text-indigo-400">{formatCurrency(item.total_price, profile?.currency_symbol || '$')}</td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex justify-end gap-1">
-                        <button 
-                          type="button" 
-                          onClick={() => editItem(index)}
-                          className="p-2 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
-                          title="Editar"
-                        >
-                          <Edit2 size={16} />
-                        </button>
-                        <button 
-                          type="button" 
-                          onClick={() => removeItem(index)}
-                          className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                          title="Eliminar"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {items.map((item, index) => {
+                  const insufficient = mode === 'sale' && item.quantity > (item.available_stock ?? 0)
+                  return (
+                    <tr key={index} className={`hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors ${insufficient ? 'bg-amber-50/50 dark:bg-amber-900/5' : ''}`}>
+                      <td className="px-4 py-3 font-bold text-slate-700 dark:text-slate-300">
+                        {item.product_name}
+                        {insufficient && (
+                          <span className="ml-2 text-[9px] font-black text-amber-600 uppercase tracking-wider">⚠ stock insuf.</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-center font-bold text-slate-600 dark:text-slate-400">x {item.quantity}</td>
+                      <td className="px-4 py-3 text-right font-medium text-slate-500">{formatCurrency(item.unit_price, profile?.currency_symbol || '$')}</td>
+                      <td className="px-4 py-3 text-right font-black text-indigo-600 dark:text-indigo-400">{formatCurrency(item.total_price, profile?.currency_symbol || '$')}</td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex justify-end gap-1">
+                          <button type="button" onClick={() => editItem(index)} className="p-2 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors" title="Editar">
+                            <Edit2 size={16} />
+                          </button>
+                          <button type="button" onClick={() => removeItem(index)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Eliminar">
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
 
-          {/* Summary */}
           <div className="flex justify-between items-center p-6 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100 dark:border-indigo-900/30">
             <div>
               <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-1">Total acumulado</p>
@@ -345,7 +406,7 @@ export default function SalesLogForm({ onSuccess, mode = 'sale' }: SalesLogFormP
               </p>
             </div>
             <div className="text-right">
-               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{items.length} productos</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{items.length} productos</p>
             </div>
           </div>
         </div>

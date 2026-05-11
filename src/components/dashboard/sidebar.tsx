@@ -11,7 +11,8 @@ import {
   Archive,
   ShoppingCart,
   FileText,
-  Landmark
+  Landmark,
+  Boxes
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -22,6 +23,7 @@ const navigation = [
   { name: 'Catálogo de Productos', href: '/dashboard/catalog', icon: Archive },
   { name: 'Registro de Ventas', href: '/dashboard/sales', icon: ShoppingCart },
   { name: 'Presupuestos', href: '/dashboard/quotes', icon: FileText },
+  { name: 'Control de Stock', href: '/dashboard/stock', icon: Boxes },
 ]
 
 interface SidebarProps {

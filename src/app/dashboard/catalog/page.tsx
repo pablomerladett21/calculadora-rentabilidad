@@ -2,10 +2,33 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
-import { LayoutGrid, List, Package, Trash2, ArrowRight, Search, Edit2, Sparkles } from 'lucide-react'
+import { LayoutGrid, List, Package, Trash2, ArrowRight, Search, Edit2, Sparkles, PackageOpen } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import EditProductModal from '@/components/dashboard/edit-product-modal'
+import AdjustStockModal from '@/components/dashboard/adjust-stock-modal'
 import { useProfile } from '@/context/profile-context'
+
+function StockBadge({ stock, threshold }: { stock: number, threshold: number }) {
+  if (stock === 0) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-red-100 text-red-600 dark:bg-red-900/20 dark:text-red-400">
+        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />Sin stock
+      </span>
+    )
+  }
+  if (stock <= threshold) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-amber-100 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400">
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />Bajo stock
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400">
+      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />{stock} uds.
+    </span>
+  )
+}
 
 export default function CatalogPage() {
   const { profile } = useProfile()
@@ -14,6 +37,7 @@ export default function CatalogPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [searchQuery, setSearchQuery] = useState('')
   const [editingProduct, setEditingProduct] = useState<any | null>(null)
+  const [adjustingStock, setAdjustingStock] = useState<any | null>(null)
 
   const fetchProducts = async () => {
     setLoading(true)
@@ -56,9 +80,9 @@ export default function CatalogPage() {
   )
 
   const exportToCSV = () => {
-    const headers = ['Producto,Costo Material,Horas,Precio Sugerido,Margen %,Ventas Totales']
+    const headers = ['Producto,Costo Material,Horas,Precio Sugerido,Margen %,Ventas Totales,Stock']
     const rows = products.map(p => 
-      `"${p.product_name}",${p.material_cost},${p.time_invested_hours},${p.suggested_price},${p.desired_margin_percent}%,${p.sales_count}`
+      `"${p.product_name}",${p.material_cost},${p.time_invested_hours},${p.suggested_price},${p.desired_margin_percent}%,${p.sales_count},${p.stock_quantity ?? 0}`
     )
     const csvContent = "data:text/csv;charset=utf-8," + headers.concat(rows).join("\n")
     const encodedUri = encodeURI(csvContent)
@@ -86,10 +110,10 @@ export default function CatalogPage() {
       <div className="space-y-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-slate-100 dark:border-slate-800 pb-8">
           <div className="flex items-center gap-3">
-             <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-                <Package size={22} />
-             </div>
-             <h2 className="text-2xl font-black text-slate-900 dark:text-white">Tus Productos</h2>
+            <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+              <Package size={22} />
+            </div>
+            <h2 className="text-2xl font-black text-slate-900 dark:text-white">Tus Productos</h2>
           </div>
 
           <div className="flex flex-1 max-w-md items-center gap-4">
@@ -152,6 +176,13 @@ export default function CatalogPage() {
               <div key={product.id} className="group relative bg-white dark:bg-slate-900/40 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-800 hover:border-indigo-500/50 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 overflow-hidden">
                 <div className="absolute top-0 right-0 p-6 flex gap-2">
                   <button 
+                    onClick={() => setAdjustingStock(product)}
+                    className="p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-xl transition-colors"
+                    title="Ajustar Stock"
+                  >
+                    <PackageOpen size={20} />
+                  </button>
+                  <button 
                     onClick={() => setEditingProduct(product)}
                     className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-xl transition-colors"
                   >
@@ -171,20 +202,15 @@ export default function CatalogPage() {
                   </div>
                   
                   <div>
-                    <h3 className="text-xl font-black text-slate-900 dark:text-white truncate pr-10 tracking-tight">{product.product_name}</h3>
-                    <div className="flex flex-wrap items-center gap-3 mt-2">
-                       <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 bg-slate-50 dark:bg-slate-800 px-2 py-0.5 rounded">Costo</span>
-                          <p className="text-sm font-bold text-slate-600 dark:text-slate-300">
-                            {formatCurrency(product.material_cost + (product.time_invested_hours * product.hourly_rate), profile?.currency_symbol || '$')}
-                          </p>
-                       </div>
-                       <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-indigo-100 bg-indigo-600 px-2 py-0.5 rounded">Ventas</span>
-                          <p className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
-                            {product.sales_count}
-                          </p>
-                       </div>
+                    <h3 className="text-xl font-black text-slate-900 dark:text-white truncate pr-24 tracking-tight">{product.product_name}</h3>
+                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 bg-slate-50 dark:bg-slate-800 px-2 py-0.5 rounded">Costo</span>
+                        <p className="text-sm font-bold text-slate-600 dark:text-slate-300">
+                          {formatCurrency(product.material_cost + (product.time_invested_hours * product.hourly_rate), profile?.currency_symbol || '$')}
+                        </p>
+                      </div>
+                      <StockBadge stock={product.stock_quantity ?? 0} threshold={product.stock_alert_threshold ?? 5} />
                     </div>
                   </div>
 
@@ -211,27 +237,33 @@ export default function CatalogPage() {
             {filteredProducts.map((product) => (
               <div key={product.id} className="group bg-white dark:bg-slate-900/40 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center justify-between hover:shadow-xl transition-all">
                 <div className="flex items-center gap-6">
-                   <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-                      <Package size={24} />
-                   </div>
-                   <div>
-                      <h3 className="font-black text-slate-900 dark:text-white tracking-tight">{product.product_name}</h3>
+                  <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                    <Package size={24} />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-slate-900 dark:text-white tracking-tight">{product.product_name}</h3>
+                    <div className="flex items-center gap-3 mt-1">
                       <p className="text-xs font-bold text-slate-400">Costo: {formatCurrency(product.material_cost + (product.time_invested_hours * product.hourly_rate), profile?.currency_symbol || '$')}</p>
-                   </div>
+                      <StockBadge stock={product.stock_quantity ?? 0} threshold={product.stock_alert_threshold ?? 5} />
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-12">
+                <div className="flex items-center gap-8">
                   <div className="text-right">
                     <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Sugerido</p>
                     <p className="text-xl font-black text-indigo-600 dark:text-indigo-400">{formatCurrency(product.suggested_price, profile?.currency_symbol || '$')}</p>
-                  </div>
-                  <div className="text-right min-w-[70px]">
-                    <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Ventas</p>
-                    <p className="text-lg font-black text-slate-900 dark:text-white">{product.sales_count}</p>
                   </div>
                   <div className="w-20 text-center py-1 bg-emerald-50 dark:bg-emerald-900/20 rounded-full">
                     <p className="text-sm font-black text-emerald-600">{product.desired_margin_percent}%</p>
                   </div>
                   <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => setAdjustingStock(product)}
+                      className="p-2.5 text-slate-300 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-xl transition-all"
+                      title="Ajustar Stock"
+                    >
+                      <PackageOpen size={20} />
+                    </button>
                     <button 
                       onClick={() => setEditingProduct(product)}
                       className="p-2.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-xl transition-all"
@@ -259,6 +291,14 @@ export default function CatalogPage() {
           product={editingProduct} 
           onClose={() => setEditingProduct(null)} 
           onSuccess={fetchProducts} 
+        />
+      )}
+
+      {adjustingStock && (
+        <AdjustStockModal
+          product={adjustingStock}
+          onClose={() => setAdjustingStock(null)}
+          onSuccess={fetchProducts}
         />
       )}
     </div>

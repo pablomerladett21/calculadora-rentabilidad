@@ -15,11 +15,50 @@ export default function QuoteView({ quote, businessProfile, onClose }: QuoteView
   }
 
   return (
-    <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300">
-      <div className="bg-white dark:bg-slate-900 w-full max-max-w-4xl max-h-[90vh] overflow-hidden rounded-3xl shadow-2xl flex flex-col relative print:shadow-none print:max-h-none print:fixed print:inset-0 print:rounded-none">
+    <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300 print:bg-white print:p-0 print:block">
+      <style jsx global>{`
+        @media print {
+          html, body {
+            height: 100vh;
+            overflow: hidden !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            -webkit-print-color-adjust: exact;
+          }
+          body * {
+            visibility: hidden;
+          }
+          #print-area, #print-area * {
+            visibility: visible;
+          }
+          #print-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100% !important;
+            height: auto !important;
+            min-height: 100vh;
+            background: white !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            display: block !important;
+          }
+          .print-hidden {
+            display: none !important;
+          }
+          @page {
+            size: auto;
+            margin: 10mm;
+          }
+        }
+      `}</style>
+      <div 
+        id="print-area"
+        className="bg-white dark:bg-slate-900 w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-3xl shadow-2xl flex flex-col relative print:shadow-none print:max-h-none print:w-full print:rounded-none"
+      >
         
         {/* Header (Hidden in Print) */}
-        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between print:hidden">
+        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between print:hidden print-hidden">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600">
               <FileText size={20} />
@@ -50,7 +89,8 @@ export default function QuoteView({ quote, businessProfile, onClose }: QuoteView
         </div>
 
         {/* Content Area (Printable) */}
-        <div id="printable-quote" className="flex-1 overflow-y-auto p-12 bg-white text-slate-900 print:p-0">
+        <div id="printable-quote" className="flex-1 overflow-y-auto p-12 bg-white text-slate-900 print:p-8">
+
           
           {/* Business Logo & Info */}
           <div className="flex flex-col md:flex-row justify-between mb-12 gap-8">
@@ -137,7 +177,8 @@ export default function QuoteView({ quote, businessProfile, onClose }: QuoteView
             ) : (
               <p className="font-bold text-slate-500">¡Gracias por su compra! Comprobante emitido exitosamente.</p>
             )}
-            <p className="font-medium text-slate-400 mt-2">Documento generado con BizTracker ROI Calculator.</p>
+            <p className="font-medium text-slate-400 mt-2">Documento generado con BizTracker ROI.</p>
+
           </div>
         </div>
       </div>

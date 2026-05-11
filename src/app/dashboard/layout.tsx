@@ -10,9 +10,13 @@ export default function DashboardLayout({
   return (
     <ProfileProvider>
       <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
-        <Sidebar />
+        <div className="print:hidden">
+          <Sidebar />
+        </div>
         <div className="flex-1 flex flex-col min-w-0">
-          <Navbar />
+          <div className="print:hidden">
+            <Navbar />
+          </div>
           <main className="flex-1 p-8 overflow-y-auto">
             <div className="max-w-7xl mx-auto">
               {children}

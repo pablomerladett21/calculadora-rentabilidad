@@ -63,16 +63,50 @@ export default function QuotesPage() {
 
   const convertToSale = async (quote: any) => {
     if (!confirm('¿Deseas convertir este presupuesto en una venta finalizada?')) return
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    // 1. Finalizar el pedido con la fecha actual
     const { error } = await supabase
       .from('sales_orders')
-      .update({ status: 'finalized' })
+      .update({ 
+        status: 'finalized',
+        created_at: new Date().toISOString() 
+      })
       .eq('id', quote.id)
-    
-    if (!error) {
-       alert('¡Venta registrada con éxito!')
-       fetchQuotes()
+
+    if (error) { alert('Error al convertir el presupuesto.'); return }
+
+    // 2. Descontar stock de cada ítem del presupuesto
+    if (quote.items && quote.items.length > 0) {
+      for (const item of quote.items) {
+        if (!item.product_id) continue
+        const { data: product } = await supabase
+          .from('products_roi')
+          .select('stock_quantity')
+          .eq('id', item.product_id)
+          .single()
+
+        if (product) {
+          const newStock = Math.max(0, (product.stock_quantity ?? 0) - item.quantity)
+          await supabase.from('products_roi').update({ stock_quantity: newStock }).eq('id', item.product_id)
+          await supabase.from('stock_movements').insert({
+            user_id: user.id,
+            product_id: item.product_id,
+            order_id: quote.id,
+            movement_type: 'out',
+            quantity: item.quantity,
+            reason: `Presupuesto convertido a venta`,
+          })
+        }
+      }
     }
+
+    alert('¡Venta registrada con éxito!')
+    fetchQuotes()
   }
+
 
   const toggleExpand = (id: string) => {
     setExpandedId(expandedId === id ? null : id)

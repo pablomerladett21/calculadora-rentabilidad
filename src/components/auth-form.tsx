@@ -31,7 +31,7 @@ export default function AuthForm({ type }: AuthFormProps) {
           },
         })
         if (error) throw error
-        setMessage('Check your email to confirm your account!')
+        setMessage('¡Revisa tu correo para confirmar tu cuenta!')
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
@@ -41,7 +41,7 @@ export default function AuthForm({ type }: AuthFormProps) {
         window.location.href = '/dashboard'
       }
     } catch (err: any) {
-      setError(err.message || 'An error occurred')
+      setError(err.message || 'Ocurrió un error inesperado')
     } finally {
       setLoading(false)
     }
