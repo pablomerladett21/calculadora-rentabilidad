@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
-import { LogOut, User, Bell, Settings, Check, X, Loader2, Sparkles, Building2 } from 'lucide-react'
+import { LogOut, User, Bell, Settings, Check, X, Loader2, Sparkles } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import type { User as SupabaseUser } from '@supabase/supabase-js'
 import AccountSettingsModal from './account-settings-modal'
 
 import { useProfile } from '@/context/profile-context'
@@ -12,10 +13,10 @@ export default function Navbar() {
   const router = useRouter()
   const { profile, updateProfileState } = useProfile()
   const [loading, setLoading] = useState(false)
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<SupabaseUser | null>(null)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false)
-  const [newBusinessName, setNewBusinessName] = useState('')
+  const [newBusinessName, setNewBusinessName] = useState(profile?.business_name || '')
   const [isSaving, setIsSaving] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
 
@@ -27,16 +28,17 @@ export default function Navbar() {
     fetchUser()
   }, [])
 
-  useEffect(() => {
-    if (profile) {
-      setNewBusinessName(profile.business_name || '')
-    }
-  }, [profile])
-
   const handleLogout = async () => {
     setLoading(true)
     await supabase.auth.signOut()
     router.push('/login')
+  }
+
+  const handleProfileToggle = () => {
+    if (!isEditModalOpen) {
+      setNewBusinessName(profile?.business_name || '')
+    }
+    setIsEditModalOpen((current) => !current)
   }
 
   const handleUpdateProfile = async () => {
@@ -87,7 +89,7 @@ export default function Navbar() {
           {/* Profile Button */}
           <div className="relative">
             <button 
-              onClick={() => setIsEditModalOpen(!isEditModalOpen)}
+              onClick={handleProfileToggle}
               className="flex items-center gap-3 p-1.5 pr-4 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all group active:scale-[0.98]"
             >
               <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center dark:bg-indigo-900/40 dark:border-indigo-800/50 group-hover:scale-105 transition-transform overflow-hidden">

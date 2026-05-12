@@ -5,9 +5,10 @@ import { supabase } from '@/lib/supabase/client'
 import { X, Save, Loader2, Calculator } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { useProfile } from '@/context/profile-context'
+import type { ProductRecord } from '@/lib/app-types'
 
 interface EditProductModalProps {
-  product: any
+  product: ProductRecord
   onSuccess: () => void
   onClose: () => void
 }
@@ -51,8 +52,8 @@ export default function EditProductModal({ product, onSuccess, onClose }: EditPr
       if (error) throw error
       onSuccess()
       onClose()
-    } catch (err: any) {
-      setError(err.message || 'Error updating product')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error updating product')
     } finally {
       setLoading(false)
     }

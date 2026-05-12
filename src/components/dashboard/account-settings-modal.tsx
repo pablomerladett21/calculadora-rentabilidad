@@ -11,17 +11,16 @@ import {
   MapPin, 
   Check, 
   Loader2, 
-  Image,
   Hash,
-  Link as LinkIcon,
   MessageCircle
 } from 'lucide-react'
+import type { BusinessProfileRecord } from '@/lib/app-types'
 
 interface AccountSettingsModalProps {
   isOpen: boolean
   onClose: () => void
-  profile: any
-  onUpdate: (newProfile: any) => void
+  profile: BusinessProfileRecord | null
+  onUpdate: (newProfile: BusinessProfileRecord) => void
 }
 
 export default function AccountSettingsModal({ isOpen, onClose, profile, onUpdate }: AccountSettingsModalProps) {
@@ -83,8 +82,9 @@ export default function AccountSettingsModal({ isOpen, onClose, profile, onUpdat
         .getPublicUrl(filePath)
 
       setLogoUrl(publicUrl)
-    } catch (err: any) {
-      setError('Error al subir la imagen: ' + err.message)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Error desconocido'
+      setError('Error al subir la imagen: ' + message)
     } finally {
       setIsUploading(false)
     }
@@ -109,10 +109,21 @@ export default function AccountSettingsModal({ isOpen, onClose, profile, onUpdat
 
       if (updateError) throw updateError
 
-      onUpdate({ ...profile, ...formData, logo_url: logoUrl })
+      onUpdate({
+        id: profile?.id || user.id,
+        business_name: formData.business_name || null,
+        currency_symbol: formData.currency_symbol || '$',
+        business_address: formData.business_address || null,
+        business_phone: formData.business_phone || null,
+        website_url: formData.website_url || null,
+        instagram_handle: formData.instagram_handle || null,
+        whatsapp_phone: formData.whatsapp_phone || null,
+        logo_url: logoUrl || null,
+      })
       onClose()
-    } catch (err: any) {
-      setError('Error al guardar: ' + err.message)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Error desconocido'
+      setError('Error al guardar: ' + message)
     } finally {
       setIsSaving(false)
     }

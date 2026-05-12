@@ -7,95 +7,122 @@ import Link from 'next/link'
 import SubscriptionsForm from '@/components/dashboard/subscriptions-form'
 import { formatCurrency } from '@/lib/utils'
 import EditSubscriptionModal from '@/components/dashboard/edit-subscription-modal'
+import type { SubscriptionRecord } from '@/lib/app-types'
 
 const EXPENSE_TYPES = [
-  { value: 'all',       label: 'Todas las Categorías', icon: Landmark },
-  { value: 'software',  label: 'Herramienta / Software', icon: Monitor },
-  { value: 'utility',   label: 'Servicios', icon: Zap },
-  { value: 'tax',       label: 'Impuestos', icon: Building2 },
+  { value: 'all', label: 'Todas las Categorias', icon: Landmark },
+  { value: 'software', label: 'Herramienta / Software', icon: Monitor },
+  { value: 'utility', label: 'Servicios', icon: Zap },
+  { value: 'tax', label: 'Impuestos', icon: Building2 },
   { value: 'insurance', label: 'Seguros', icon: Shield },
-  { value: 'rent',      label: 'Alquiler', icon: Box },
-  { value: 'salary',    label: 'Sueldos / Personal', icon: User },
-  { value: 'other',     label: 'Otros', icon: FileText },
+  { value: 'rent', label: 'Alquiler', icon: Box },
+  { value: 'salary', label: 'Sueldos / Personal', icon: User },
+  { value: 'other', label: 'Otros', icon: FileText },
 ]
 
 export default function SubscriptionsPage() {
-  const [subscriptions, setSubscriptions] = useState<any[]>([])
+  const [subscriptions, setSubscriptions] = useState<SubscriptionRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedExpenseType, setSelectedExpenseType] = useState<string>('all')
-  const [editingSubscription, setEditingSubscription] = useState<any | null>(null)
+  const [editingSubscription, setEditingSubscription] = useState<SubscriptionRecord | null>(null)
 
-  const fetchSubscriptions = async () => {
+  async function fetchSubscriptions() {
     setLoading(true)
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      setSubscriptions([])
+      setLoading(false)
+      return
+    }
+
     const { data, error } = await supabase
       .from('subscriptions')
       .select('*')
+      .eq('user_id', user.id)
       .order('created_at', { ascending: false })
-    
-    if (!error) setSubscriptions(data || [])
+
+    if (!error) setSubscriptions((data as SubscriptionRecord[]) || [])
     setLoading(false)
   }
 
   useEffect(() => {
-    fetchSubscriptions()
+    let active = true
+
+    async function loadSubscriptions() {
+      if (!active) return
+      await fetchSubscriptions()
+    }
+
+    void loadSubscriptions()
+
+    return () => {
+      active = false
+    }
   }, [])
 
   const handleDelete = async (id: string) => {
-    if (!confirm('¿Estás seguro de eliminar este gasto fijo?')) return
+    if (!confirm('Estas seguro de eliminar este gasto fijo?')) return
     const { error } = await supabase.from('subscriptions').delete().eq('id', id)
-    if (!error) fetchSubscriptions()
+    if (!error) void fetchSubscriptions()
   }
 
-  const filteredSubscriptions = subscriptions.filter(sub => {
-    const matchesSearch = sub.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          (sub.category || '').toLowerCase().includes(searchQuery.toLowerCase())
-    
-    // Por retrocompatibilidad, si no tiene expense_type, lo tratamos como 'software'
-    const subType = sub.expense_type || 'software'
+  const filteredSubscriptions = subscriptions.filter((subscription) => {
+    const matchesSearch =
+      subscription.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (subscription.category || '').toLowerCase().includes(searchQuery.toLowerCase())
+
+    const subType = subscription.expense_type || 'software'
     const matchesCategory = selectedExpenseType === 'all' || subType === selectedExpenseType
-    
+
     return matchesSearch && matchesCategory
   })
 
-  const totalMonthly = filteredSubscriptions.reduce((acc, sub) => {
-    const cost = parseFloat(sub.cost)
-    return acc + (sub.billing_cycle === 'yearly' ? cost / 12 : cost)
+  const totalMonthly = filteredSubscriptions.reduce((acc, subscription) => {
+    const cost = parseFloat(String(subscription.cost))
+    return acc + (subscription.billing_cycle === 'yearly' ? cost / 12 : cost)
   }, 0)
 
   const exportToCSV = () => {
-    const headers = ['Nombre,Costo,Ciclo,Categoría,Tipo de Gasto,Creado']
-    const rows = subscriptions.map(sub => 
-      `"${sub.name}",${sub.cost},${sub.billing_cycle},"${sub.category || ''}","${sub.expense_type || 'software'}",${new Date(sub.created_at).toLocaleDateString()}`
+    const headers = ['Nombre,Costo,Ciclo,Categoria,Tipo de Gasto,Creado']
+    const rows = subscriptions.map((subscription) =>
+      `"${subscription.name}",${subscription.cost},${subscription.billing_cycle},"${subscription.category || ''}","${subscription.expense_type || 'software'}",${new Date(subscription.created_at || '').toLocaleDateString()}`
     )
-    const csvContent = "data:text/csv;charset=utf-8," + headers.concat(rows).join("\n")
+    const csvContent = `data:text/csv;charset=utf-8,${headers.concat(rows).join('\n')}`
     const encodedUri = encodeURI(csvContent)
-    const link = document.createElement("a")
-    link.setAttribute("href", encodedUri)
-    link.setAttribute("download", "biztracker_gastos_fijos.csv")
+    const link = document.createElement('a')
+    link.setAttribute('href', encodedUri)
+    link.setAttribute('download', 'biztracker_gastos_fijos.csv')
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
   }
 
-  // Helper para obtener el ícono y color basado en el tipo de gasto
-  const getIconForExpenseType = (type: string) => {
-    const t = type || 'software'
-    switch (t) {
-      case 'software':  return { Icon: Monitor, color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-50 dark:bg-indigo-900/20' }
-      case 'utility':   return { Icon: Zap, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/20' }
-      case 'tax':       return { Icon: Building2, color: 'text-rose-500', bg: 'bg-rose-50 dark:bg-rose-900/20' }
-      case 'insurance': return { Icon: Shield, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20' }
-      case 'rent':      return { Icon: Box, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20' }
-      case 'salary':    return { Icon: User, color: 'text-cyan-500', bg: 'bg-cyan-50 dark:bg-cyan-900/20' }
-      default:          return { Icon: FileText, color: 'text-slate-500', bg: 'bg-slate-100 dark:bg-slate-800' }
+  const getIconForExpenseType = (type: string | null) => {
+    const resolvedType = type || 'software'
+    switch (resolvedType) {
+      case 'software':
+        return { Icon: Monitor, color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-50 dark:bg-indigo-900/20' }
+      case 'utility':
+        return { Icon: Zap, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/20' }
+      case 'tax':
+        return { Icon: Building2, color: 'text-rose-500', bg: 'bg-rose-50 dark:bg-rose-900/20' }
+      case 'insurance':
+        return { Icon: Shield, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20' }
+      case 'rent':
+        return { Icon: Box, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20' }
+      case 'salary':
+        return { Icon: User, color: 'text-cyan-500', bg: 'bg-cyan-50 dark:bg-cyan-900/20' }
+      default:
+        return { Icon: FileText, color: 'text-slate-500', bg: 'bg-slate-100 dark:bg-slate-800' }
     }
   }
 
-  const getLabelForExpenseType = (type: string) => {
-    const t = type || 'software'
-    const found = EXPENSE_TYPES.find(x => x.value === t)
+  const getLabelForExpenseType = (type: string | null) => {
+    const resolvedType = type || 'software'
+    const found = EXPENSE_TYPES.find((expenseType) => expenseType.value === resolvedType)
     return found ? found.label : 'Otro'
   }
 
@@ -115,7 +142,7 @@ export default function SubscriptionsPage() {
               <Plus size={20} />
               Nuevo Gasto
             </button>
-            <button 
+            <button
               onClick={exportToCSV}
               className="flex items-center gap-2 px-6 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all active:scale-95 shadow-sm"
             >
@@ -128,10 +155,10 @@ export default function SubscriptionsPage() {
 
       {showForm && (
         <div className="animate-in zoom-in-95 duration-300">
-          <SubscriptionsForm 
+          <SubscriptionsForm
             onSuccess={() => {
               setShowForm(false)
-              fetchSubscriptions()
+              void fetchSubscriptions()
             }}
             onCancel={() => setShowForm(false)}
           />
@@ -144,23 +171,23 @@ export default function SubscriptionsPage() {
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/10 flex flex-col sm:flex-row items-center gap-4">
               <div className="flex items-center gap-3 bg-white dark:bg-slate-800 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 flex-1 w-full group focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all">
                 <Search size={18} className="text-slate-400 group-focus-within:text-indigo-600" />
-                <input 
-                  type="text" 
-                  placeholder="Buscar proveedor o detalle..." 
+                <input
+                  type="text"
+                  placeholder="Buscar proveedor o detalle..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="bg-transparent border-none outline-none text-sm dark:text-slate-300 w-full font-medium"
                 />
               </div>
-              
+
               <div className="flex items-center gap-2 w-full sm:w-auto">
                 <Filter size={18} className="text-slate-400" />
-                <select 
+                <select
                   value={selectedExpenseType}
                   onChange={(e) => setSelectedExpenseType(e.target.value)}
                   className="bg-white dark:bg-slate-800 border-none outline-none text-xs font-bold text-slate-500 hover:text-indigo-600 transition-colors cursor-pointer rounded-lg px-2 py-1"
                 >
-                  {EXPENSE_TYPES.map(type => (
+                  {EXPENSE_TYPES.map((type) => (
                     <option key={type.value} value={type.value}>{type.label}</option>
                   ))}
                 </select>
@@ -176,11 +203,14 @@ export default function SubscriptionsPage() {
                     <Landmark size={32} className="text-slate-300 dark:text-slate-700" />
                   </div>
                   <p className="text-slate-500 font-medium">
-                    {searchQuery || selectedExpenseType !== 'all' ? 'No se encontraron resultados para los filtros aplicados.' : 'No tenés gastos fijos registrados aún.'}
+                    {searchQuery || selectedExpenseType !== 'all' ? 'No se encontraron resultados para los filtros aplicados.' : 'No tienes gastos fijos registrados aun.'}
                   </p>
                   {(searchQuery || selectedExpenseType !== 'all') && (
-                    <button 
-                      onClick={() => { setSearchQuery(''); setSelectedExpenseType('all'); }}
+                    <button
+                      onClick={() => {
+                        setSearchQuery('')
+                        setSelectedExpenseType('all')
+                      }}
                       className="text-indigo-600 font-bold hover:underline py-2"
                     >
                       Limpiar filtros
@@ -188,28 +218,28 @@ export default function SubscriptionsPage() {
                   )}
                 </div>
               ) : (
-                filteredSubscriptions.map((sub) => {
-                  const { Icon, color, bg } = getIconForExpenseType(sub.expense_type)
-                  
+                filteredSubscriptions.map((subscription) => {
+                  const { Icon, color, bg } = getIconForExpenseType(subscription.expense_type)
+
                   return (
-                    <div key={sub.id} className="p-6 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-all group">
+                    <div key={subscription.id} className="p-6 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-all group">
                       <div className="flex items-center gap-5">
                         <div className={`w-14 h-14 rounded-[1.25rem] flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform ${bg} ${color}`}>
                           <Icon size={24} />
                         </div>
                         <div>
-                          <h3 className="font-bold text-slate-900 dark:text-white text-lg">{sub.name}</h3>
+                          <h3 className="font-bold text-slate-900 dark:text-white text-lg">{subscription.name}</h3>
                           <div className="flex items-center gap-3 mt-1">
                             <span className="text-[10px] font-black uppercase tracking-tighter bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-md dark:bg-indigo-900/40 dark:text-indigo-300">
-                              {getLabelForExpenseType(sub.expense_type)}
+                              {getLabelForExpenseType(subscription.expense_type)}
                             </span>
                             <span className="flex items-center gap-1 text-xs font-bold text-slate-400 capitalize">
                               <Calendar size={12} />
-                              {sub.billing_cycle === 'monthly' ? 'Mensual' : 'Anual'}
+                              {subscription.billing_cycle === 'monthly' ? 'Mensual' : 'Anual'}
                             </span>
-                            {sub.category && (
+                            {subscription.category && (
                               <span className="text-[10px] font-bold text-slate-400 truncate max-w-[120px]">
-                                · {sub.category}
+                                . {subscription.category}
                               </span>
                             )}
                           </div>
@@ -217,18 +247,18 @@ export default function SubscriptionsPage() {
                       </div>
                       <div className="flex items-center gap-8">
                         <div className="text-right">
-                          <p className="text-xl font-black text-slate-900 dark:text-white">{formatCurrency(sub.cost)}</p>
-                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{sub.billing_cycle}</p>
+                          <p className="text-xl font-black text-slate-900 dark:text-white">{formatCurrency(Number(subscription.cost))}</p>
+                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{subscription.billing_cycle}</p>
                         </div>
                         <div className="flex items-center gap-4">
-                          <button 
-                            onClick={() => setEditingSubscription(sub)}
+                          <button
+                            onClick={() => setEditingSubscription(subscription)}
                             className="p-3 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all dark:hover:bg-indigo-900/20"
                           >
                             <Edit2 size={20} />
                           </button>
-                          <button 
-                            onClick={() => handleDelete(sub.id)}
+                          <button
+                            onClick={() => handleDelete(subscription.id)}
                             className="p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all dark:hover:bg-red-900/20"
                           >
                             <Trash2 size={20} />
@@ -245,23 +275,20 @@ export default function SubscriptionsPage() {
 
         <div className="space-y-8">
           <div className="p-8 bg-gradient-to-br from-indigo-600 to-blue-700 rounded-[2rem] text-white shadow-2xl shadow-indigo-500/30 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 -mt-8 -mr-8 w-32 h-32 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
+            <div className="absolute top-0 right-0 -mt-8 -mr-8 w-32 h-32 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700" />
             <div className="relative z-10">
               <h3 className="text-indigo-100 text-xs font-black uppercase tracking-[0.2em] flex items-center gap-2">
                 <Landmark size={14} /> Gastos Proyectados
               </h3>
               <p className="text-5xl font-black mt-3">{formatCurrency(totalMonthly)}</p>
               <p className="text-indigo-200/80 text-sm mt-2 font-medium italic">Presupuesto mensual estimado</p>
-              
+
               <div className="mt-10 pt-8 border-t border-white/10 flex justify-between items-center group">
                 <div>
                   <p className="text-indigo-200 text-[10px] font-black uppercase tracking-widest">Total Anual</p>
                   <p className="text-2xl font-black">{formatCurrency(totalMonthly * 12)}</p>
                 </div>
-                <Link 
-                  href="/dashboard"
-                  className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center hover:bg-white/20 transition-all active:scale-90"
-                >
+                <Link href="/dashboard" className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center hover:bg-white/20 transition-all active:scale-90">
                   <ArrowRight size={20} />
                 </Link>
               </div>
@@ -269,31 +296,31 @@ export default function SubscriptionsPage() {
           </div>
 
           <div className="p-8 bg-white dark:bg-slate-900/40 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
-             <div className="absolute top-0 right-0 p-4 opacity-10">
-                <Landmark size={64} />
-             </div>
-             <h4 className="font-black text-slate-900 dark:text-white mb-6 text-lg">Tips para Gastos Fijos</h4>
-             <ul className="space-y-4">
-               {[
-                 "Identificá y da de baja servicios que no estás utilizando.",
-                 "Pagá anualmente software y seguros para obtener descuentos.",
-                 "Revisá el impacto de rentas y sueldos en tu rentabilidad."
-               ].map((tip, i) => (
-                 <li key={i} className="flex gap-4 items-start">
-                   <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-indigo-600 flex-shrink-0" />
-                   <p className="text-sm font-medium text-slate-500 dark:text-slate-400 leading-relaxed">{tip}</p>
-                 </li>
-               ))}
-             </ul>
+            <div className="absolute top-0 right-0 p-4 opacity-10">
+              <Landmark size={64} />
+            </div>
+            <h4 className="font-black text-slate-900 dark:text-white mb-6 text-lg">Tips para Gastos Fijos</h4>
+            <ul className="space-y-4">
+              {[
+                'Identifica y da de baja servicios que no estas utilizando.',
+                'Paga anualmente software y seguros para obtener descuentos.',
+                'Revisa el impacto de rentas y sueldos en tu rentabilidad.',
+              ].map((tip, i) => (
+                <li key={i} className="flex gap-4 items-start">
+                  <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-indigo-600 flex-shrink-0" />
+                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400 leading-relaxed">{tip}</p>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       </div>
 
       {editingSubscription && (
-        <EditSubscriptionModal 
-          subscription={editingSubscription} 
-          onClose={() => setEditingSubscription(null)} 
-          onSuccess={fetchSubscriptions} 
+        <EditSubscriptionModal
+          subscription={editingSubscription}
+          onClose={() => setEditingSubscription(null)}
+          onSuccess={fetchSubscriptions}
         />
       )}
     </div>

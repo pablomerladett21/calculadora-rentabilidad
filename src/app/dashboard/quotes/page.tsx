@@ -4,41 +4,28 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { useProfile } from '@/context/profile-context'
 import { formatCurrency } from '@/lib/utils'
-import { 
-  FileText, 
-  Search, 
-  Plus, 
-  Printer, 
-  Trash2, 
-  ChevronDown,
-  ChevronUp,
-  Clock,
-  User,
-  CheckCircle2,
-  X
-} from 'lucide-react'
+import { FileText, Search, Plus, Printer, Trash2, ChevronDown, ChevronUp, Clock, User, CheckCircle2, X } from 'lucide-react'
 import QuoteView from '@/components/dashboard/quote-view'
 import SalesLogForm from '@/components/dashboard/sales-log-form'
+import type { SalesOrderItemRecord, SalesOrderRecord } from '@/lib/app-types'
 
 export default function QuotesPage() {
   const { profile } = useProfile()
-  const [quotes, setQuotes] = useState<any[]>([])
+  const [quotes, setQuotes] = useState<SalesOrderRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedQuote, setSelectedQuote] = useState<any>(null)
-  
-  // Nuevo estado para mostrar formulario o detalles
+  const [selectedQuote, setSelectedQuote] = useState<SalesOrderRecord | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [expandedId, setExpandedId] = useState<string | null>(null)
-
-  useEffect(() => {
-    fetchQuotes()
-  }, [])
 
   async function fetchQuotes() {
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) {
+      setQuotes([])
+      setLoading(false)
+      return
+    }
 
     const { data, error } = await supabase
       .from('sales_orders')
@@ -51,97 +38,79 @@ export default function QuotesPage() {
       .order('created_at', { ascending: false })
 
     if (error) console.error(error)
-    setQuotes(data || [])
+    setQuotes((data as SalesOrderRecord[]) || [])
     setLoading(false)
   }
 
-  const deleteQuote = async (id: string) => {
-    if (!confirm('¿Estás seguro de eliminar este presupuesto?')) return
-    const { error } = await supabase.from('sales_orders').delete().eq('id', id)
-    if (!error) fetchQuotes()
-  }
+  useEffect(() => {
+    let active = true
 
-  const convertToSale = async (quote: any) => {
-    if (!confirm('¿Deseas convertir este presupuesto en una venta finalizada?')) return
-
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-
-    // 1. Finalizar el pedido con la fecha actual
-    const { error } = await supabase
-      .from('sales_orders')
-      .update({ 
-        status: 'finalized',
-        created_at: new Date().toISOString() 
-      })
-      .eq('id', quote.id)
-
-    if (error) { alert('Error al convertir el presupuesto.'); return }
-
-    // 2. Descontar stock de cada ítem del presupuesto
-    if (quote.items && quote.items.length > 0) {
-      for (const item of quote.items) {
-        if (!item.product_id) continue
-        const { data: product } = await supabase
-          .from('products_roi')
-          .select('stock_quantity')
-          .eq('id', item.product_id)
-          .single()
-
-        if (product) {
-          const newStock = Math.max(0, (product.stock_quantity ?? 0) - item.quantity)
-          await supabase.from('products_roi').update({ stock_quantity: newStock }).eq('id', item.product_id)
-          await supabase.from('stock_movements').insert({
-            user_id: user.id,
-            product_id: item.product_id,
-            order_id: quote.id,
-            movement_type: 'out',
-            quantity: item.quantity,
-            reason: `Presupuesto convertido a venta`,
-          })
-        }
-      }
+    async function loadQuotes() {
+      if (!active) return
+      await fetchQuotes()
     }
 
-    alert('¡Venta registrada con éxito!')
-    fetchQuotes()
+    void loadQuotes()
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const deleteQuote = async (id: string) => {
+    if (!confirm('Estas seguro de eliminar este presupuesto?')) return
+    const { error } = await supabase.from('sales_orders').delete().eq('id', id)
+    if (!error) void fetchQuotes()
   }
 
+  const convertToSale = async (quote: SalesOrderRecord) => {
+    if (!confirm('Deseas convertir este presupuesto en una venta finalizada?')) return
+
+    const { error } = await supabase.rpc('finalize_quote_sale', {
+      p_order_id: quote.id,
+    })
+
+    if (error) {
+      alert('Error al convertir el presupuesto.')
+      return
+    }
+
+    alert('Venta registrada con exito.')
+    void fetchQuotes()
+  }
 
   const toggleExpand = (id: string) => {
     setExpandedId(expandedId === id ? null : id)
   }
 
-  const filteredQuotes = quotes.filter(q => 
-    (q.customer_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    q.id.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredQuotes = quotes.filter((quote) =>
+    (quote.customer_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    quote.id.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  const totalValue = quotes.reduce((acc, q) => acc + Number(q.total_amount || 0), 0)
+  const totalValue = quotes.reduce((acc, quote) => acc + Number(quote.total_amount || 0), 0)
 
   return (
     <div className="p-6 md:p-10 space-y-8 animate-in fade-in duration-700">
-      
-      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">Presupuestos</h1>
-          <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mt-2">Gestioná y compartí cotizaciones con tus clientes</p>
+          <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mt-2">Gestiona y comparte cotizaciones con tus clientes</p>
         </div>
-        
+
         {!showForm && (
           <button
             onClick={() => setShowForm(true)}
             className="flex items-center justify-center gap-2 px-8 py-3.5 bg-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-indigo-500/25 hover:bg-indigo-700 active:scale-95 transition-all text-sm uppercase tracking-widest"
           >
-            <Plus size={18} /> Nueva Cotización
+            <Plus size={18} /> Nueva Cotizacion
           </button>
         )}
       </div>
 
       {showForm && (
         <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-300">
-          <button 
+          <button
             onClick={() => setShowForm(false)}
             className="absolute top-6 right-6 p-2 text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-all"
           >
@@ -152,16 +121,15 @@ export default function QuotesPage() {
               <span className="p-2.5 bg-indigo-600 text-white rounded-xl"><FileText size={20} /></span>
               Crear Nuevo Presupuesto
             </h2>
-            <p className="text-sm font-medium text-slate-500 mt-2 ml-14">Ingresá los productos para generar una nueva cotización.</p>
+            <p className="text-sm font-medium text-slate-500 mt-2 ml-14">Ingresa los productos para generar una nueva cotizacion.</p>
           </div>
           <SalesLogForm mode="quote" onSuccess={() => {
             setShowForm(false)
-            fetchQuotes()
+            void fetchQuotes()
           }} />
         </div>
       )}
 
-      {/* Stats / Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-6">
           <div className="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600">
@@ -172,7 +140,7 @@ export default function QuotesPage() {
             <p className="text-3xl font-black text-slate-900 dark:text-white">{quotes.length}</p>
           </div>
         </div>
-        
+
         <div className="bg-gradient-to-br from-indigo-600 to-blue-700 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/20 text-white flex items-center gap-6">
           <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center text-indigo-100">
             <FileText size={24} />
@@ -184,19 +152,17 @@ export default function QuotesPage() {
         </div>
       </div>
 
-      {/* Search and Filters */}
       <div className="relative group max-w-md">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={20} />
         <input
           type="text"
           placeholder="Buscar por cliente o ID..."
           value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
+          onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full pl-12 pr-4 py-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-sm focus:ring-4 focus:ring-indigo-500/10 transition-all font-semibold text-sm outline-none"
         />
       </div>
 
-      {/* Quotes List */}
       <div className="space-y-4">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 animate-pulse">
@@ -205,21 +171,17 @@ export default function QuotesPage() {
           </div>
         ) : filteredQuotes.length === 0 ? (
           <div className="bg-slate-50 dark:bg-slate-900/50 rounded-3xl p-12 text-center border-2 border-dashed border-slate-200 dark:border-slate-800">
-             <div className="w-16 h-16 bg-white dark:bg-slate-900 rounded-2xl shadow-xl flex items-center justify-center text-slate-300 mx-auto mb-6">
-                <FileText size={32} />
-             </div>
-             <h3 className="text-lg font-black text-slate-900 dark:text-white mb-2">No hay presupuestos</h3>
-             <p className="text-sm text-slate-500 font-medium max-w-xs mx-auto mb-8">Comenzá registrando un nuevo presupuesto desde el botón superior.</p>
+            <div className="w-16 h-16 bg-white dark:bg-slate-900 rounded-2xl shadow-xl flex items-center justify-center text-slate-300 mx-auto mb-6">
+              <FileText size={32} />
+            </div>
+            <h3 className="text-lg font-black text-slate-900 dark:text-white mb-2">No hay presupuestos</h3>
+            <p className="text-sm text-slate-500 font-medium max-w-xs mx-auto mb-8">Comienza registrando un nuevo presupuesto desde el boton superior.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4">
-            {filteredQuotes.map(quote => (
-              <div 
-                key={quote.id}
-                className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-xl hover:shadow-indigo-500/5 transition-all group overflow-hidden"
-              >
+            {filteredQuotes.map((quote) => (
+              <div key={quote.id} className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-xl hover:shadow-indigo-500/5 transition-all group overflow-hidden">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                  {/* Left Side: Info */}
                   <div className="flex items-center gap-4 cursor-pointer" onClick={() => toggleExpand(quote.id)}>
                     <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors flex-shrink-0">
                       <FileText size={24} />
@@ -230,7 +192,7 @@ export default function QuotesPage() {
                         <span className="w-1 h-1 rounded-full bg-slate-200 dark:bg-slate-700" />
                         <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{new Date(quote.created_at).toLocaleDateString()}</span>
                         <span className="w-1 h-1 rounded-full bg-slate-200 dark:bg-slate-700" />
-                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{quote.items?.length || 0} ítems</span>
+                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{quote.items.length} items</span>
                       </div>
                       <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
                         <User size={16} className="text-slate-400" />
@@ -239,17 +201,16 @@ export default function QuotesPage() {
                     </div>
                   </div>
 
-                  {/* Right Side: Actions & Total */}
                   <div className="flex flex-wrap items-center gap-6">
                     <div className="text-right">
-                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Cotizado</p>
-                       <p className="text-xl font-black text-indigo-600 dark:text-indigo-400 tracking-tighter">
-                         {formatCurrency(quote.total_amount, quote.currency_symbol)}
-                       </p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Cotizado</p>
+                      <p className="text-xl font-black text-indigo-600 dark:text-indigo-400 tracking-tighter">
+                        {formatCurrency(quote.total_amount, quote.currency_symbol)}
+                      </p>
                     </div>
-                    
-                    <div className="h-10 w-px bg-slate-100 dark:bg-slate-800 hidden md:block"></div>
-                    
+
+                    <div className="h-10 w-px bg-slate-100 dark:bg-slate-800 hidden md:block" />
+
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => setSelectedQuote(quote)}
@@ -272,7 +233,7 @@ export default function QuotesPage() {
                       >
                         <Trash2 size={18} />
                       </button>
-                      <button 
+                      <button
                         onClick={() => toggleExpand(quote.id)}
                         className="p-3 text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-all"
                       >
@@ -282,12 +243,11 @@ export default function QuotesPage() {
                   </div>
                 </div>
 
-                {/* Expanded Details Inline */}
                 {expandedId === quote.id && (
                   <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800 animate-in slide-in-from-top-4 duration-300">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Detalle de la Cotización</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Detalle de la Cotizacion</p>
                     <div className="space-y-2">
-                      {quote.items?.map((item: any, idx: number) => (
+                      {quote.items.map((item: SalesOrderItemRecord, idx: number) => (
                         <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                           <div className="flex items-center gap-3">
                             <span className="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 flex items-center justify-center text-[10px] font-bold">
@@ -318,12 +278,11 @@ export default function QuotesPage() {
         )}
       </div>
 
-      {/* View/Print Modal */}
       {selectedQuote && (
-        <QuoteView 
-          quote={selectedQuote} 
-          businessProfile={profile} 
-          onClose={() => setSelectedQuote(null)} 
+        <QuoteView
+          quote={selectedQuote}
+          businessProfile={profile}
+          onClose={() => setSelectedQuote(null)}
         />
       )}
     </div>

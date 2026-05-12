@@ -51,8 +51,8 @@ export default function SubscriptionsForm({ onSuccess, onCancel }: Subscriptions
 
       if (error) throw error
       onSuccess()
-    } catch (err: any) {
-      setError(err.message || 'Error al guardar el gasto')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error al guardar el gasto')
     } finally {
       setLoading(false)
     }

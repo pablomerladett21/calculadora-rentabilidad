@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { X, Save, Loader2, Landmark } from 'lucide-react'
+import type { SubscriptionRecord } from '@/lib/app-types'
 
 // Tipos de gasto disponibles (igual que en el formulario de creación)
 const EXPENSE_TYPES = [
@@ -16,7 +17,7 @@ const EXPENSE_TYPES = [
 ]
 
 interface EditSubscriptionModalProps {
-  subscription: any
+  subscription: SubscriptionRecord
   onSuccess: () => void
   onClose: () => void
 }
@@ -24,7 +25,7 @@ interface EditSubscriptionModalProps {
 export default function EditSubscriptionModal({ subscription, onSuccess, onClose }: EditSubscriptionModalProps) {
   const [name, setName] = useState(subscription.name)
   const [cost, setCost] = useState(subscription.cost.toString())
-  const [billingCycle, setBillingCycle] = useState(subscription.billing_cycle)
+  const [billingCycle, setBillingCycle] = useState<SubscriptionRecord['billing_cycle']>(subscription.billing_cycle)
   const [category, setCategory] = useState(subscription.category || '')
   const [expenseType, setExpenseType] = useState(subscription.expense_type || 'software')
   const [loading, setLoading] = useState(false)
@@ -50,8 +51,8 @@ export default function EditSubscriptionModal({ subscription, onSuccess, onClose
       if (error) throw error
       onSuccess()
       onClose()
-    } catch (err: any) {
-      setError(err.message || 'Error al actualizar el gasto')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error al actualizar el gasto')
     } finally {
       setLoading(false)
     }
@@ -117,7 +118,7 @@ export default function EditSubscriptionModal({ subscription, onSuccess, onClose
                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Frecuencia</label>
                 <select
                   value={billingCycle}
-                  onChange={(e) => setBillingCycle(e.target.value)}
+                  onChange={(e) => setBillingCycle(e.target.value as SubscriptionRecord['billing_cycle'])}
                   className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 outline-none font-bold transition-all"
                 >
                   <option value="monthly">Mensual</option>

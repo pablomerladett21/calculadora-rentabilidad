@@ -23,25 +23,27 @@ export default function AuthForm({ type }: AuthFormProps) {
 
     try {
       if (type === 'register') {
-        const { error } = await supabase.auth.signUp({
+        const { error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            emailRedirectTo: `${window.location.origin}/auth/callback?redirect=/dashboard`,
           },
         })
-        if (error) throw error
-        setMessage('¡Revisa tu correo para confirmar tu cuenta!')
+
+        if (signUpError) throw signUpError
+        setMessage('Revisa tu correo para confirmar tu cuenta.')
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
         })
-        if (error) throw error
+
+        if (signInError) throw signInError
         window.location.href = '/dashboard'
       }
-    } catch (err: any) {
-      setError(err.message || 'Ocurrió un error inesperado')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Ocurrio un error inesperado')
     } finally {
       setLoading(false)
     }
@@ -57,8 +59,8 @@ export default function AuthForm({ type }: AuthFormProps) {
           {type === 'login' ? 'Bienvenido de nuevo' : 'Crea tu cuenta'}
         </h1>
         <p className="text-zinc-500 dark:text-zinc-400">
-          {type === 'login' 
-            ? 'Ingresa tus credenciales para acceder a tu panel' 
+          {type === 'login'
+            ? 'Ingresa tus credenciales para acceder a tu panel'
             : 'Comienza a potenciar tu negocio hoy mismo'}
         </p>
       </div>
@@ -66,7 +68,7 @@ export default function AuthForm({ type }: AuthFormProps) {
       <form onSubmit={handleAuth} className="space-y-4">
         <div className="space-y-2">
           <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300" htmlFor="email">
-            Correo electrónico
+            Correo electronico
           </label>
           <input
             id="email"
@@ -81,12 +83,12 @@ export default function AuthForm({ type }: AuthFormProps) {
 
         <div className="space-y-2">
           <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300" htmlFor="password">
-            Contraseña
+            Contrasena
           </label>
           <input
             id="password"
             type="password"
-            placeholder="••••••••"
+            placeholder="********"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
@@ -114,20 +116,20 @@ export default function AuthForm({ type }: AuthFormProps) {
           {loading ? (
             <Loader2 className="animate-spin" size={20} />
           ) : (
-            type === 'login' ? 'Iniciar Sesión' : 'Crear Cuenta'
+            type === 'login' ? 'Iniciar sesion' : 'Crear cuenta'
           )}
         </button>
       </form>
 
       <div className="mt-6 text-center text-sm">
         <span className="text-zinc-500">
-          {type === 'login' ? '¿No tienes cuenta?' : '¿Ya tienes cuenta?'}
+          {type === 'login' ? 'No tienes cuenta?' : 'Ya tienes cuenta?'}
         </span>{' '}
         <a
           href={type === 'login' ? '/register' : '/login'}
           className="font-semibold text-indigo-600 hover:text-indigo-500 transition-colors"
         >
-          {type === 'login' ? 'Regístrate aquí' : 'Inicia sesión'}
+          {type === 'login' ? 'Registrate aqui' : 'Inicia sesion'}
         </a>
       </div>
     </div>

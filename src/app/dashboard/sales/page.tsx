@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, startTransition } from 'react'
 import { supabase } from '@/lib/supabase/client'
-import { ShoppingCart, Trash2, Sparkles, TrendingUp, Calendar, BarChart3, Star, Search, Filter, History, Printer } from 'lucide-react'
+import { ShoppingCart, Trash2, Sparkles, TrendingUp, Calendar, BarChart3, Star, Search, History, Printer } from 'lucide-react'
 import SalesLogForm from '@/components/dashboard/sales-log-form'
 import QuoteView from '@/components/dashboard/quote-view'
 import { formatCurrency } from '@/lib/utils'
 import { useProfile } from '@/context/profile-context'
+import type { SalesOrderItemRecord, SalesOrderRecord } from '@/lib/app-types'
 
 type Range = 'day' | 'week' | 'month' | 'year' | 'all'
 
@@ -15,37 +16,41 @@ function startOf(unit: Range) {
   if (unit === 'day') return new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
   if (unit === 'week') {
     const day = now.getDay()
-    const diff = now.getDate() - day + (day === 0 ? -6 : 1) // Monday
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1)
     return new Date(now.getFullYear(), now.getMonth(), diff).toISOString()
   }
   if (unit === 'month') return new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
   if (unit === 'year') return new Date(now.getFullYear(), 0, 1).toISOString()
-  return new Date(2000, 0, 1).toISOString() // Early date for 'all'
+  return new Date(2000, 0, 1).toISOString()
 }
 
 export default function SalesPage() {
   const { profile } = useProfile()
-  const [sales, setSales] = useState<any[]>([])
+  const [sales, setSales] = useState<SalesOrderRecord[]>([])
   const [summary, setSummary] = useState({ today: 0, week: 0, month: 0, year: 0 })
   const [loading, setLoading] = useState(true)
   const [filterRange, setFilterRange] = useState<Range>('day')
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedSale, setSelectedSale] = useState<any>(null)
+  const [selectedSale, setSelectedSale] = useState<SalesOrderRecord | null>(null)
 
   const fetchAll = useCallback(async () => {
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setLoading(false); return }
+    if (!user) {
+      setSales([])
+      setSummary({ today: 0, week: 0, month: 0, year: 0 })
+      setLoading(false)
+      return
+    }
 
     const uid = user.id
-
-    // Fetch summaries always for the cards
     const [todayRes, weekRes, monthRes, yearRes, listRes] = await Promise.all([
       supabase.from('sales_orders').select('total_amount').eq('user_id', uid).eq('status', 'finalized').gte('created_at', startOf('day')),
       supabase.from('sales_orders').select('total_amount').eq('user_id', uid).eq('status', 'finalized').gte('created_at', startOf('week')),
       supabase.from('sales_orders').select('total_amount').eq('user_id', uid).eq('status', 'finalized').gte('created_at', startOf('month')),
       supabase.from('sales_orders').select('total_amount').eq('user_id', uid).eq('status', 'finalized').gte('created_at', startOf('year')),
-      supabase.from('sales_orders')
+      supabase
+        .from('sales_orders')
         .select(`
           *,
           items:sales_order_items(*)
@@ -56,7 +61,8 @@ export default function SalesPage() {
         .order('created_at', { ascending: false }),
     ])
 
-    const sum = (rows: any[]) => (rows || []).reduce((a, r) => a + parseFloat(r.total_amount || 0), 0)
+    const sum = (rows: Array<{ total_amount: number | string | null }>) =>
+      rows.reduce((acc, row) => acc + parseFloat(String(row.total_amount || 0)), 0)
 
     setSummary({
       today: sum(todayRes.data || []),
@@ -64,35 +70,38 @@ export default function SalesPage() {
       month: sum(monthRes.data || []),
       year: sum(yearRes.data || []),
     })
-    setSales(listRes.data || [])
+    setSales((listRes.data as SalesOrderRecord[]) || [])
     setLoading(false)
   }, [filterRange])
 
-  useEffect(() => { fetchAll() }, [fetchAll])
+  useEffect(() => {
+    startTransition(() => {
+      void fetchAll()
+    })
+  }, [fetchAll])
 
   const handleDelete = async (id: string) => {
-    if (!confirm('¿Eliminar esta venta?')) return
+    if (!confirm('Eliminar esta venta?')) return
     await supabase.from('sales_orders').delete().eq('id', id)
-    fetchAll()
+    void fetchAll()
   }
 
-  const filteredSales = sales.filter(s => 
-    (s.customer_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (s.notes && s.notes.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (s.items && s.items.some((i: any) => i.product_name.toLowerCase().includes(searchQuery.toLowerCase())))
+  const filteredSales = sales.filter((sale) =>
+    (sale.customer_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (sale.notes || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    sale.items.some((item: SalesOrderItemRecord) => item.product_name.toLowerCase().includes(searchQuery.toLowerCase()))
   )
 
   const rangeLabels: Record<Range, string> = {
     day: 'Hoy',
     week: 'Esta Semana',
     month: 'Este Mes',
-    year: 'Este Año',
-    all: 'Todo el Historial'
+    year: 'Este Anio',
+    all: 'Todo el Historial',
   }
 
   return (
     <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
           <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-bold text-sm uppercase tracking-widest mb-2">
@@ -100,17 +109,16 @@ export default function SalesPage() {
             <span>Punto de Venta</span>
           </div>
           <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white">Registro de Ventas</h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-2 text-lg">Registrá tus ventas y analizá el rendimiento histórico.</p>
+          <p className="text-slate-500 dark:text-slate-400 mt-2 text-lg">Registra tus ventas y analiza el rendimiento historico.</p>
         </div>
       </div>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
         {[
           { label: 'Hoy', value: summary.today, icon: Star, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/20' },
           { label: 'Esta Semana', value: summary.week, icon: Calendar, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20' },
           { label: 'Este Mes', value: summary.month, icon: BarChart3, color: 'text-indigo-600', bg: 'bg-indigo-50 dark:bg-indigo-900/20' },
-          { label: 'Este Año', value: summary.year, icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
+          { label: 'Este Anio', value: summary.year, icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
         ].map(({ label, value, icon: Icon, color, bg }) => (
           <div key={label} className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 p-6 rounded-[2rem] shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300">
             <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center mb-4`}>
@@ -124,10 +132,7 @@ export default function SalesPage() {
         ))}
       </div>
 
-      {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-10">
-
-        {/* Form */}
         <div className="lg:col-span-2 space-y-8">
           <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 p-8 rounded-[2rem] shadow-sm">
             <div className="flex items-center gap-3 mb-8">
@@ -142,12 +147,11 @@ export default function SalesPage() {
           <div className="bg-indigo-600 rounded-[2rem] p-8 text-white shadow-xl shadow-indigo-500/20">
             <h3 className="text-lg font-black mb-2 uppercase tracking-tight">Tip de hoy</h3>
             <p className="text-indigo-100 text-sm leading-relaxed">
-              Mantener tus ventas al día te permite ver tendencias reales en el Dashboard y ajustar tus precios estratégicamente.
+              Mantener tus ventas al dia te permite ver tendencias reales en el Dashboard y ajustar tus precios estrategicamente.
             </p>
           </div>
         </div>
 
-        {/* History Log */}
         <div className="lg:col-span-3 bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 p-8 rounded-[2rem] shadow-sm flex flex-col">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8">
             <div className="flex items-center gap-3">
@@ -156,26 +160,25 @@ export default function SalesPage() {
               </div>
               <h2 className="text-xl font-black text-slate-900 dark:text-white">Historial de Ventas</h2>
             </div>
-            
+
             <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl">
-              {(['day', 'week', 'month', 'all'] as Range[]).map((r) => (
+              {(['day', 'week', 'month', 'all'] as Range[]).map((range) => (
                 <button
-                  key={r}
-                  onClick={() => setFilterRange(r)}
-                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filterRange === r ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                  key={range}
+                  onClick={() => setFilterRange(range)}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filterRange === range ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                 >
-                  {r === 'day' ? 'Hoy' : r === 'week' ? 'Sem' : r === 'month' ? 'Mes' : 'Todo'}
+                  {range === 'day' ? 'Hoy' : range === 'week' ? 'Sem' : range === 'month' ? 'Mes' : 'Todo'}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Search bar */}
           <div className="relative mb-6 group">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={18} />
-            <input 
-              type="text" 
-              placeholder="Buscar por producto o nota..." 
+            <input
+              type="text"
+              placeholder="Buscar por producto o nota..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl focus:ring-4 focus:ring-indigo-500/10 transition-all font-medium text-slate-900 dark:text-white outline-none"
@@ -184,17 +187,15 @@ export default function SalesPage() {
 
           <div className="flex-1 space-y-3 min-h-[400px] overflow-y-auto pr-2">
             {loading ? (
-              [1, 2, 3, 4].map(i => (
-                <div key={i} className="h-20 bg-slate-100 dark:bg-slate-800 animate-pulse rounded-2xl" />
-              ))
+              [1, 2, 3, 4].map((i) => <div key={i} className="h-20 bg-slate-100 dark:bg-slate-800 animate-pulse rounded-2xl" />)
             ) : filteredSales.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-slate-400 py-20">
                 <ShoppingCart size={48} className="mb-4 opacity-20" />
                 <p className="text-sm font-bold">No se encontraron ventas</p>
-                <p className="text-xs mt-1">Probá cambiando el filtro o registrando una nueva.</p>
+                <p className="text-xs mt-1">Prueba cambiando el filtro o registrando una nueva.</p>
               </div>
             ) : (
-              filteredSales.map(order => (
+              filteredSales.map((order) => (
                 <div key={order.id} className="group flex flex-col p-4 bg-slate-50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 rounded-2xl border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-all gap-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
@@ -211,8 +212,8 @@ export default function SalesPage() {
                           </span>
                         </div>
                         <p className="text-[10px] text-slate-400 font-bold mt-0.5">
-                          {order.items?.length || 0} productos
-                          {order.notes && <span className="ml-2 italic text-indigo-500/70">· {order.notes}</span>}
+                          {order.items.length} productos
+                          {order.notes && <span className="ml-2 italic text-indigo-500/70">. {order.notes}</span>}
                         </p>
                       </div>
                     </div>
@@ -234,16 +235,16 @@ export default function SalesPage() {
                       </button>
                     </div>
                   </div>
-                  {/* Item Details */}
-                  {order.items && order.items.length > 0 && (
-                     <div className="pl-16 pr-4 space-y-1">
-                        {order.items.map((item: any, idx: number) => (
-                           <div key={idx} className="flex justify-between items-center py-1 border-t border-slate-100 dark:border-slate-800/50 first:border-0 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                              <span>{item.quantity}x {item.product_name}</span>
-                              <span>{formatCurrency(item.total_price, profile?.currency_symbol || '$')}</span>
-                           </div>
-                        ))}
-                     </div>
+
+                  {order.items.length > 0 && (
+                    <div className="pl-16 pr-4 space-y-1">
+                      {order.items.map((item: SalesOrderItemRecord, idx: number) => (
+                        <div key={idx} className="flex justify-between items-center py-1 border-t border-slate-100 dark:border-slate-800/50 first:border-0 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                          <span>{item.quantity}x {item.product_name}</span>
+                          <span>{formatCurrency(item.total_price, profile?.currency_symbol || '$')}</span>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               ))
@@ -255,17 +256,17 @@ export default function SalesPage() {
               Mostrando: <span className="text-indigo-600">{rangeLabels[filterRange]}</span>
             </p>
             <p className="text-sm font-black text-slate-900 dark:text-white tracking-tight">
-              Total: {formatCurrency(filteredSales.reduce((a, s) => a + parseFloat(s.total_amount || 0), 0), profile?.currency_symbol || '$')}
+              Total: {formatCurrency(filteredSales.reduce((acc, sale) => acc + parseFloat(String(sale.total_amount || 0)), 0), profile?.currency_symbol || '$')}
             </p>
           </div>
         </div>
       </div>
 
       {selectedSale && (
-        <QuoteView 
-          quote={selectedSale} 
-          businessProfile={profile} 
-          onClose={() => setSelectedSale(null)} 
+        <QuoteView
+          quote={selectedSale}
+          businessProfile={profile}
+          onClose={() => setSelectedSale(null)}
         />
       )}
     </div>

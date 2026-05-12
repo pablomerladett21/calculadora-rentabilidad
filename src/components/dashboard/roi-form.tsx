@@ -94,11 +94,13 @@ export default function RoiForm({ onSuccess }: RoiFormProps) {
       onSuccess()
       setSaved(true)
       setTimeout(() => setSaved(false), 5000)
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err instanceof z.ZodError) {
         setError(err.issues[0].message)
+      } else if (err instanceof Error) {
+        setError(err.message)
       } else {
-        setError(err.message || 'Error al guardar el producto')
+        setError('Error al guardar el producto')
       }
     } finally {
       setLoading(false)

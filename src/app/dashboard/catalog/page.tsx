@@ -7,8 +7,9 @@ import { formatCurrency } from '@/lib/utils'
 import EditProductModal from '@/components/dashboard/edit-product-modal'
 import AdjustStockModal from '@/components/dashboard/adjust-stock-modal'
 import { useProfile } from '@/context/profile-context'
+import type { CatalogProduct } from '@/lib/app-types'
 
-function StockBadge({ stock, threshold }: { stock: number, threshold: number }) {
+function StockBadge({ stock, threshold }: { stock: number; threshold: number }) {
   if (stock === 0) {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-red-100 text-red-600 dark:bg-red-900/20 dark:text-red-400">
@@ -32,63 +33,89 @@ function StockBadge({ stock, threshold }: { stock: number, threshold: number }) 
 
 export default function CatalogPage() {
   const { profile } = useProfile()
-  const [products, setProducts] = useState<any[]>([])
+  const [products, setProducts] = useState<CatalogProduct[]>([])
   const [loading, setLoading] = useState(true)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [searchQuery, setSearchQuery] = useState('')
-  const [editingProduct, setEditingProduct] = useState<any | null>(null)
-  const [adjustingStock, setAdjustingStock] = useState<any | null>(null)
+  const [editingProduct, setEditingProduct] = useState<CatalogProduct | null>(null)
+  const [adjustingStock, setAdjustingStock] = useState<CatalogProduct | null>(null)
 
-  const fetchProducts = async () => {
+  async function fetchProducts() {
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) {
+      setProducts([])
+      setLoading(false)
+      return
+    }
 
-    const [productsRes, salesRes] = await Promise.all([
+    const [productsRes, ordersRes] = await Promise.all([
       supabase.from('products_roi').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
-      supabase.from('sales').select('product_id').eq('user_id', user.id)
+      supabase.from('sales_orders').select('id').eq('user_id', user.id).eq('status', 'finalized'),
     ])
-    
+
     if (!productsRes.error) {
       const salesCounts: Record<string, number> = {}
-      salesRes.data?.forEach(s => {
-        if (s.product_id) salesCounts[s.product_id] = (salesCounts[s.product_id] || 0) + 1
-      })
-      
-      const productsWithSales = (productsRes.data || []).map(p => ({
-        ...p,
-        sales_count: salesCounts[p.id] || 0
+      const orderIds = (ordersRes.data || []).map((order) => order.id)
+
+      if (orderIds.length > 0) {
+        const { data: itemsData } = await supabase
+          .from('sales_order_items')
+          .select('product_id, quantity')
+          .in('order_id', orderIds)
+
+        itemsData?.forEach((item) => {
+          if (!item.product_id) return
+          salesCounts[item.product_id] = (salesCounts[item.product_id] || 0) + Number(item.quantity || 0)
+        })
+      }
+
+      const productsWithSales: CatalogProduct[] = (productsRes.data || []).map((product) => ({
+        ...product,
+        sales_count: salesCounts[product.id] || 0,
       }))
-      
+
       setProducts(productsWithSales)
     }
+
     setLoading(false)
   }
 
   useEffect(() => {
-    fetchProducts()
+    let active = true
+
+    async function loadProducts() {
+      if (!active) return
+      await fetchProducts()
+    }
+
+    void loadProducts()
+
+    return () => {
+      active = false
+    }
   }, [])
 
   const handleDelete = async (id: string) => {
-    if (!confirm('¿Eliminar este producto del catálogo?')) return
+    if (!confirm('Eliminar este producto del catalogo?')) return
     const { error } = await supabase.from('products_roi').delete().eq('id', id)
-    if (!error) fetchProducts()
+    if (!error) void fetchProducts()
   }
 
-  const filteredProducts = products.filter(product => 
+  const filteredProducts = products.filter((product) =>
     product.product_name.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
   const exportToCSV = () => {
     const headers = ['Producto,Costo Material,Horas,Precio Sugerido,Margen %,Ventas Totales,Stock']
-    const rows = products.map(p => 
-      `"${p.product_name}",${p.material_cost},${p.time_invested_hours},${p.suggested_price},${p.desired_margin_percent}%,${p.sales_count},${p.stock_quantity ?? 0}`
+    const rows = products.map((product) =>
+      `"${product.product_name}",${product.material_cost},${product.time_invested_hours},${product.suggested_price},${product.desired_margin_percent}%,${product.sales_count},${product.stock_quantity ?? 0}`
     )
-    const csvContent = "data:text/csv;charset=utf-8," + headers.concat(rows).join("\n")
+    const csvContent = `data:text/csv;charset=utf-8,${headers.concat(rows).join('\n')}`
     const encodedUri = encodeURI(csvContent)
-    const link = document.createElement("a")
-    link.setAttribute("href", encodedUri)
-    link.setAttribute("download", "biztracker_catalogo_productos.csv")
+    const link = document.createElement('a')
+    link.setAttribute('href', encodedUri)
+    link.setAttribute('download', 'biztracker_catalogo_productos.csv')
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -100,9 +127,9 @@ export default function CatalogPage() {
         <div>
           <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-bold text-sm uppercase tracking-widest mb-2">
             <Sparkles size={16} />
-            <span>Gestión de Inventario</span>
+            <span>Gestion de Inventario</span>
           </div>
-          <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white">Catálogo de Productos</h1>
+          <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white">Catalogo de Productos</h1>
           <p className="text-slate-500 dark:text-slate-400 mt-2 text-lg">Visualiza y gestiona todos tus productos analizados.</p>
         </div>
       </div>
@@ -119,16 +146,16 @@ export default function CatalogPage() {
           <div className="flex flex-1 max-w-md items-center gap-4">
             <div className="relative flex-1 group">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={18} />
-              <input 
-                type="text" 
-                placeholder="Buscar producto..." 
+              <input
+                type="text"
+                placeholder="Buscar producto..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl focus:ring-4 focus:ring-indigo-500/10 transition-all font-medium text-slate-900 dark:text-white outline-none"
               />
             </div>
 
-            <button 
+            <button
               onClick={exportToCSV}
               className="flex items-center gap-2 px-5 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all active:scale-95 shadow-sm"
             >
@@ -137,13 +164,13 @@ export default function CatalogPage() {
             </button>
 
             <div className="flex bg-slate-100 p-1.5 rounded-2xl dark:bg-slate-800 shadow-inner">
-              <button 
+              <button
                 onClick={() => setViewMode('grid')}
                 className={`p-2 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-indigo-600 dark:bg-slate-700' : 'text-slate-400 hover:text-slate-600'}`}
               >
                 <LayoutGrid size={20} />
               </button>
-              <button 
+              <button
                 onClick={() => setViewMode('list')}
                 className={`p-2 rounded-xl transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-indigo-600 dark:bg-slate-700' : 'text-slate-400 hover:text-slate-600'}`}
               >
@@ -154,19 +181,16 @@ export default function CatalogPage() {
         </div>
 
         {loading ? (
-          <div className="text-center py-20 text-slate-400 font-medium animate-pulse">Cargando catálogo...</div>
+          <div className="text-center py-20 text-slate-400 font-medium animate-pulse">Cargando catalogo...</div>
         ) : filteredProducts.length === 0 ? (
           <div className="py-24 text-center bg-white dark:bg-slate-900/20 rounded-[2rem] border-2 border-dashed border-slate-200 dark:border-slate-800">
             <Package size={48} className="mx-auto text-slate-200 dark:text-slate-700 mb-4" />
             <p className="text-slate-400 font-medium">
-              {searchQuery ? `No se encontraron resultados para "${searchQuery}"` : 'Aún no tienes productos guardados en tu catálogo.'}
+              {searchQuery ? `No se encontraron resultados para "${searchQuery}"` : 'Aun no tienes productos guardados en tu catalogo.'}
             </p>
             {searchQuery && (
-              <button 
-                onClick={() => setSearchQuery('')}
-                className="mt-4 text-indigo-600 font-bold hover:underline"
-              >
-                Limpiar búsqueda
+              <button onClick={() => setSearchQuery('')} className="mt-4 text-indigo-600 font-bold hover:underline">
+                Limpiar busqueda
               </button>
             )}
           </div>
@@ -175,32 +199,32 @@ export default function CatalogPage() {
             {filteredProducts.map((product) => (
               <div key={product.id} className="group relative bg-white dark:bg-slate-900/40 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-800 hover:border-indigo-500/50 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 overflow-hidden">
                 <div className="absolute top-0 right-0 p-6 flex gap-2">
-                  <button 
+                  <button
                     onClick={() => setAdjustingStock(product)}
                     className="p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-xl transition-colors"
                     title="Ajustar Stock"
                   >
                     <PackageOpen size={20} />
                   </button>
-                  <button 
+                  <button
                     onClick={() => setEditingProduct(product)}
                     className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-xl transition-colors"
                   >
                     <Edit2 size={20} />
                   </button>
-                  <button 
+                  <button
                     onClick={() => handleDelete(product.id)}
                     className="p-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors"
                   >
                     <Trash2 size={20} />
                   </button>
                 </div>
-                
+
                 <div className="space-y-6">
                   <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 dark:bg-indigo-900/20 group-hover:scale-110 transition-transform duration-300 shadow-sm border border-indigo-100 dark:border-indigo-800/50">
                     <Package size={28} />
                   </div>
-                  
+
                   <div>
                     <h3 className="text-xl font-black text-slate-900 dark:text-white truncate pr-24 tracking-tight">{product.product_name}</h3>
                     <div className="flex flex-wrap items-center gap-2 mt-2">
@@ -257,21 +281,21 @@ export default function CatalogPage() {
                     <p className="text-sm font-black text-emerald-600">{product.desired_margin_percent}%</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button 
+                    <button
                       onClick={() => setAdjustingStock(product)}
                       className="p-2.5 text-slate-300 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-xl transition-all"
                       title="Ajustar Stock"
                     >
                       <PackageOpen size={20} />
                     </button>
-                    <button 
+                    <button
                       onClick={() => setEditingProduct(product)}
                       className="p-2.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-xl transition-all"
                       title="Editar Producto"
                     >
                       <Edit2 size={20} />
                     </button>
-                    <button 
+                    <button
                       onClick={() => handleDelete(product.id)}
                       className="p-2.5 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all"
                       title="Eliminar"
@@ -287,19 +311,11 @@ export default function CatalogPage() {
       </div>
 
       {editingProduct && (
-        <EditProductModal 
-          product={editingProduct} 
-          onClose={() => setEditingProduct(null)} 
-          onSuccess={fetchProducts} 
-        />
+        <EditProductModal product={editingProduct} onClose={() => setEditingProduct(null)} onSuccess={fetchProducts} />
       )}
 
       {adjustingStock && (
-        <AdjustStockModal
-          product={adjustingStock}
-          onClose={() => setAdjustingStock(null)}
-          onSuccess={fetchProducts}
-        />
+        <AdjustStockModal product={adjustingStock} onClose={() => setAdjustingStock(null)} onSuccess={fetchProducts} />
       )}
     </div>
   )

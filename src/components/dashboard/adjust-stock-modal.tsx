@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { X, Loader2, PackagePlus, PackageMinus, SlidersHorizontal } from 'lucide-react'
 import { z } from 'zod'
+import type { ProductRecord } from '@/lib/app-types'
 
 const adjustSchema = z.object({
   quantity: z.number().min(0, 'La cantidad no puede ser negativa').optional(),
@@ -11,7 +12,7 @@ const adjustSchema = z.object({
 })
 
 interface AdjustStockModalProps {
-  product: any
+  product: ProductRecord
   onClose: () => void
   onSuccess: () => void
 }
@@ -83,11 +84,13 @@ export default function AdjustStockModal({ product, onClose, onSuccess }: Adjust
 
       onSuccess()
       onClose()
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err instanceof z.ZodError) {
         setError(err.issues[0].message)
+      } else if (err instanceof Error) {
+        setError(err.message)
       } else {
-        setError(err.message || 'Error al ajustar el stock.')
+        setError('Error al ajustar el stock.')
       }
     } finally {
       setLoading(false)
