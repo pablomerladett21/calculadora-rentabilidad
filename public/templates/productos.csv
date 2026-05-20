@@ -1,0 +1,2 @@
+product_name,material_cost,time_invested_hours,hourly_rate,desired_margin_percent,stock_quantity,stock_alert_threshold
+Ejemplo Producto,1200,2,1500,30,10,3

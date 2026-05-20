@@ -8,6 +8,7 @@ import { formatCurrency } from '@/lib/utils'
 import { useProfile } from '@/context/profile-context'
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid, Area, AreaChart } from 'recharts'
 import type { ProductRecord, SubscriptionRecord } from '@/lib/app-types'
+import SetupScreen from '@/components/dashboard/setup-screen'
 
 interface ChartPoint {
   day: string
@@ -193,30 +194,46 @@ export default function DashboardPage() {
   }, [])
 
   const colors = ['#4f46e5', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6']
+  const needsSetup = !loading && (!profile?.business_name || stats.productCount === 0)
 
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+      <div className="rounded-[2.5rem] border border-slate-200/80 dark:border-slate-800 bg-gradient-to-br from-white to-indigo-50/60 dark:from-slate-900/70 dark:to-slate-900 p-8 md:p-10 shadow-sm overflow-hidden relative">
+        <div className="absolute -top-16 -right-12 w-48 h-48 bg-indigo-500/10 blur-3xl rounded-full pointer-events-none" />
+        <div className="absolute -bottom-16 -left-12 w-56 h-56 bg-emerald-500/10 blur-3xl rounded-full pointer-events-none" />
+        <div className="relative flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
           <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-bold text-sm uppercase tracking-widest mb-2">
             <Sparkles size={16} />
-            <span>Panel de Control</span>
+            <span>Control de rentabilidad</span>
           </div>
-          <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white">Bienvenido de nuevo</h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-2 text-lg">Aqui tienes un resumen de tu negocio hoy.</p>
+          <h1 className="text-4xl md:text-5xl font-black tracking-tight text-slate-900 dark:text-white">Tu negocio en numeros, sin complicarte.</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-3 text-lg max-w-2xl">
+            Mira ventas, margen, stock y gastos fijos en un solo lugar para saber rapido si estas ganando plata.
+          </p>
         </div>
-        <div className="flex gap-4">
-          <Link href="/dashboard/sales" className="group flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white font-bold rounded-2xl hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-500/25 active:scale-95 text-sm">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Link href="/dashboard/sales" className="group flex items-center justify-center gap-2 px-6 py-3 bg-emerald-600 text-white font-bold rounded-2xl hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-500/25 active:scale-95 text-sm">
             <ShoppingCart size={18} />
             Registrar Venta
           </Link>
-          <Link href="/dashboard/roi-calc" className="group flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-500/25 active:scale-95 text-sm">
+          <Link href="/dashboard/roi-calc" className="group flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-500/25 active:scale-95 text-sm">
             <Plus size={18} />
-            Nuevo Analisis
+            Crear Producto
             <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
           </Link>
         </div>
       </div>
+      </div>
+
+      {needsSetup && (
+        <SetupScreen
+          profile={profile}
+          productCount={stats.productCount}
+          hasExpenses={stats.subscriptionTotal > 0}
+          hasSales={stats.todaySales > 0 || stats.salesTrend.some((point) => point.total > 0)}
+        />
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <StatCard
@@ -230,9 +247,9 @@ export default function DashboardPage() {
         />
         <Link href="/dashboard/catalog" className="block transition-transform hover:-translate-y-1">
           <StatCard
-            title="Catalogo de Productos"
+            title="Productos Cargados"
             value={loading ? '...' : stats.productCount.toString()}
-            subtitle="Analisis de rentabilidad"
+            subtitle="Listos para vender"
             icon={Package}
             trend={stats.productCount > 0 ? 'Activo' : 'Vacio'}
             color="bg-indigo-600"
@@ -240,7 +257,7 @@ export default function DashboardPage() {
           />
         </Link>
         <StatCard
-          title="Margen de Beneficio"
+          title="Margen Promedio"
           value={loading ? '...' : `${stats.avgMargin.toFixed(1)}%`}
           subtitle="Promedio por producto"
           icon={TrendingUp}
@@ -252,7 +269,7 @@ export default function DashboardPage() {
           <StatCard
             title="Ventas de Hoy"
             value={loading ? '...' : formatCurrency(stats.todaySales, profile?.currency_symbol || '$')}
-            subtitle="Click para registrar"
+            subtitle="Entrada de caja"
             icon={ShoppingCart}
             trend="Ver todo"
             color="bg-amber-500"

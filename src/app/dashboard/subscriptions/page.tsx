@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { Plus, Landmark, Trash2, Calendar, Search, Filter, ArrowRight, Edit2, Zap, Monitor, Building2, User, Box, FileText, Shield } from 'lucide-react'
 import Link from 'next/link'
@@ -8,6 +8,8 @@ import SubscriptionsForm from '@/components/dashboard/subscriptions-form'
 import { formatCurrency } from '@/lib/utils'
 import EditSubscriptionModal from '@/components/dashboard/edit-subscription-modal'
 import type { SubscriptionRecord } from '@/lib/app-types'
+import { parseCsv } from '@/lib/csv'
+import CsvImportHelp from '@/components/dashboard/csv-import-help'
 
 const EXPENSE_TYPES = [
   { value: 'all', label: 'Todas las Categorias', icon: Landmark },
@@ -27,6 +29,8 @@ export default function SubscriptionsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedExpenseType, setSelectedExpenseType] = useState<string>('all')
   const [editingSubscription, setEditingSubscription] = useState<SubscriptionRecord | null>(null)
+  const [showImportHelp, setShowImportHelp] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   async function fetchSubscriptions() {
     setLoading(true)
@@ -100,6 +104,45 @@ export default function SubscriptionsPage() {
     document.body.removeChild(link)
   }
 
+  const importSubscriptionsFromCSV = async (file: File) => {
+    const text = await file.text()
+    const rows = parseCsv(text)
+
+    if (rows.length === 0) {
+      alert('El CSV no tiene filas para importar.')
+      return
+    }
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      alert('No hay una sesion activa.')
+      return
+    }
+
+    let imported = 0
+    for (const row of rows) {
+      const name = row.name || row.nombre || row.proveedor
+      if (!name) continue
+
+      const payload = {
+        user_id: user.id,
+        name,
+        cost: Number.parseFloat(row.cost || row.costo || '0'),
+        billing_cycle: (row.billing_cycle || row.ciclo || 'monthly').toLowerCase() === 'yearly' ? 'yearly' : 'monthly',
+        category: row.category || row.categoria || null,
+        expense_type: row.expense_type || row.tipo_de_gasto || 'software',
+      }
+
+      const { error } = await supabase.from('subscriptions').insert(payload)
+      if (!error) imported += 1
+    }
+
+    await fetchSubscriptions()
+    alert(`Importados ${imported} gastos fijos.`)
+  }
+
+  const handleImportClick = () => fileInputRef.current?.click()
+
   const getIconForExpenseType = (type: string | null) => {
     const resolvedType = type || 'software'
     switch (resolvedType) {
@@ -127,7 +170,7 @@ export default function SubscriptionsPage() {
   }
 
   return (
-    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
           <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white">Gastos Fijos</h1>
@@ -149,8 +192,58 @@ export default function SubscriptionsPage() {
               <ArrowRight size={16} className="rotate-90" />
               CSV
             </button>
+            <button
+              onClick={handleImportClick}
+              className="flex items-center gap-2 px-6 py-3.5 bg-indigo-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition-all active:scale-95 shadow-sm"
+            >
+              Importar
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv,text/csv"
+              className="hidden"
+              onChange={async (event) => {
+                const file = event.target.files?.[0]
+                if (file) {
+                  await importSubscriptionsFromCSV(file)
+                }
+                event.target.value = ''
+              }}
+            />
           </div>
         )}
+      </div>
+
+      <div className="rounded-[2rem] border border-indigo-200 bg-indigo-50/60 dark:bg-indigo-900/10 dark:border-indigo-800/40 p-6 md:p-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+        <div className="max-w-2xl">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400 mb-2">Importacion CSV</p>
+          <h2 className="text-2xl font-black text-slate-900 dark:text-white">Carga tus gastos fijos sin escribirlos a mano.</h2>
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+            Usa la plantilla para subir servicios, alquiler, sueldos y software en pocos segundos.
+          </p>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <a
+            href="/templates/gastos.csv"
+            download
+            className="px-5 py-3 text-center bg-white dark:bg-slate-900 border border-indigo-100 dark:border-slate-800 rounded-2xl text-sm font-black text-indigo-700 dark:text-indigo-300 hover:shadow-md transition-all"
+          >
+            Descargar plantilla
+          </a>
+          <button
+            onClick={handleImportClick}
+            className="px-5 py-3 bg-indigo-600 text-white rounded-2xl text-sm font-black hover:bg-indigo-700 transition-all shadow-sm"
+          >
+            Importar CSV
+          </button>
+          <button
+            onClick={() => setShowImportHelp(true)}
+            className="px-5 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-black text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+          >
+            Ver ayuda
+          </button>
+        </div>
       </div>
 
       {showForm && (
@@ -323,6 +416,21 @@ export default function SubscriptionsPage() {
           onSuccess={fetchSubscriptions}
         />
       )}
+
+      <CsvImportHelp
+        isOpen={showImportHelp}
+        onClose={() => setShowImportHelp(false)}
+        title="Importar gastos fijos"
+        templateHref="/templates/gastos.csv"
+        steps={[
+          'Descarga la plantilla de gastos.',
+          'Completa una fila por gasto fijo.',
+          'Sube el CSV desde el boton Importar CSV.',
+          'Revisa que aparezca en la lista y en el resumen mensual.',
+        ]}
+        columns={['name', 'cost', 'billing_cycle', 'category', 'expense_type']}
+        example={['Adobe CC', '29.99', 'monthly', 'Software', 'software']}
+      />
     </div>
   )
 }

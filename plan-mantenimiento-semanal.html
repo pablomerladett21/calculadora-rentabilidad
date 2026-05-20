@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Plan de Mantenimiento Semanal</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --panel: #ffffff;
+      --text: #0f172a;
+      --muted: #475569;
+      --line: #dbe4f0;
+      --accent: #4f46e5;
+      --accent-soft: #eef2ff;
+      --good: #059669;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+      color: var(--text);
+    }
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 0 auto;
+      padding: 18mm 16mm 16mm;
+      background: var(--bg);
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 22px;
+      box-shadow: 0 8px 30px rgba(15, 23, 42, 0.05);
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      letter-spacing: -0.03em;
+    }
+    .subtitle {
+      margin: 0 0 18px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    h2 {
+      margin: 24px 0 12px;
+      font-size: 18px;
+      color: var(--accent);
+    }
+    ul {
+      margin: 0;
+      padding-left: 20px;
+    }
+    li {
+      margin: 8px 0;
+      line-height: 1.35;
+      font-size: 13.5px;
+    }
+    .section {
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+      margin-top: 14px;
+    }
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 10px;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .chip {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .rule {
+      margin-top: 20px;
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: #ecfdf5;
+      border: 1px solid #bbf7d0;
+      color: #065f46;
+      font-weight: 700;
+    }
+    .small {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .footer {
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .page-break {
+      page-break-after: always;
+      break-after: page;
+    }
+    @media print {
+      body { background: white; }
+      .page {
+        width: auto;
+        min-height: auto;
+        padding: 0;
+        background: white;
+      }
+      .card {
+        box-shadow: none;
+        border: none;
+        border-radius: 0;
+        padding: 0;
+      }
+      .page-break { page-break-after: always; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="card">
+      <h1>Plan de Mantenimiento Semanal</h1>
+      <p class="subtitle">Checklist simple para revisar la app, Vercel y Supabase sin perder tiempo.</p>
+
+      <div class="section">
+        <div class="section-title">Cada semana <span class="chip">7 pasos</span></div>
+        <ul>
+          <li>Revisar <strong>Vercel</strong> y confirmar que el ultimo deploy este <strong>Ready</strong>.</li>
+          <li>Abrir <strong>Deployments</strong> y ver si hubo errores recientes en <strong>Build Logs</strong>.</li>
+          <li>Abrir <strong>Logs</strong> y revisar si hubo errores en <strong>Functions</strong>.</li>
+          <li>Probar el flujo basico de la app.</li>
+          <li>Registrar un producto nuevo, una venta y un presupuesto.</li>
+          <li>Convertir un presupuesto en venta y confirmar que el stock baje correctamente.</li>
+          <li>Revisar en <strong>Supabase</strong> que se esten guardando datos en las tablas principales.</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Datos a revisar</div>
+        <ul>
+          <li><code>products_roi</code></li>
+          <li><code>subscriptions</code></li>
+          <li><code>sales_orders</code></li>
+          <li><code>sales_order_items</code></li>
+          <li><code>stock_movements</code></li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Auth y acceso</div>
+        <ul>
+          <li>Probar login y logout.</li>
+          <li>Confirmar que el callback de auth siga funcionando.</li>
+          <li>Revisar que los correos de confirmacion sigan llegando.</li>
+          <li>Abrir la app en incognito y verificar que no haya errores visibles.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="page page-break">
+    <div class="card">
+      <div class="section">
+        <div class="section-title">Control visual</div>
+        <ul>
+          <li>Revisar consola del navegador si algo se ve raro.</li>
+          <li>Anotar cualquier error nuevo con fecha y mensaje exacto.</li>
+          <li>Guardar en GitHub cualquier cambio importante hecho esa semana.</li>
+          <li>Confirmar que nombre de empresa, logo y moneda sigan correctos.</li>
+          <li>Revisar si hay productos duplicados o viejos.</li>
+          <li>Revisar si hay gastos fijos mal cargados.</li>
+        </ul>
+      </div>
+
+      <h2>Cada mes</h2>
+      <div class="section">
+        <ul>
+          <li>Revisar si el uso real justifica pasar a un plan pago.</li>
+          <li>Verificar si el storage o la base estan quedando cortos.</li>
+          <li>Confirmar que la app siga rapida en celular.</li>
+          <li>Revisar que no haya datos inconsistentes en ventas o stock.</li>
+        </ul>
+      </div>
+
+      <div class="rule">
+        Regla simple: si algo falla dos semanas seguidas, corregirlo ese mismo dia.
+      </div>
+
+      <p class="footer">Documento generado para uso personal. Puedes imprimirlo o enviarlo al celular.</p>
+      <p class="small">Versión: 13 de mayo de 2026</p>
+    </div>
+  </div>
+</body>
+</html>

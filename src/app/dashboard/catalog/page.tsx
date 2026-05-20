@@ -1,13 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { LayoutGrid, List, Package, Trash2, ArrowRight, Search, Edit2, Sparkles, PackageOpen } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import EditProductModal from '@/components/dashboard/edit-product-modal'
 import AdjustStockModal from '@/components/dashboard/adjust-stock-modal'
+import CsvImportHelp from '@/components/dashboard/csv-import-help'
 import { useProfile } from '@/context/profile-context'
 import type { CatalogProduct } from '@/lib/app-types'
+import { parseCsv } from '@/lib/csv'
 
 function StockBadge({ stock, threshold }: { stock: number; threshold: number }) {
   if (stock === 0) {
@@ -39,6 +41,8 @@ export default function CatalogPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [editingProduct, setEditingProduct] = useState<CatalogProduct | null>(null)
   const [adjustingStock, setAdjustingStock] = useState<CatalogProduct | null>(null)
+  const [showImportHelp, setShowImportHelp] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   async function fetchProducts() {
     setLoading(true)
@@ -121,6 +125,82 @@ export default function CatalogPage() {
     document.body.removeChild(link)
   }
 
+  const importProductsFromCSV = async (file: File) => {
+    const text = await file.text()
+    const rows = parseCsv(text)
+
+    if (rows.length === 0) {
+      alert('El CSV no tiene filas para importar.')
+      return
+    }
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      alert('No hay una sesion activa.')
+      return
+    }
+
+    const payload = rows
+      .filter((row) => row.product_name || row.nombre || row.producto)
+      .map((row) => {
+        const productName = row.product_name || row.nombre || row.producto
+        const materialCost = Number.parseFloat(row.material_cost || row.costo_material || row.costo || '0')
+        const timeInvestedHours = Number.parseFloat(row.time_invested_hours || row.horas || '0')
+        const hourlyRate = Number.parseFloat(row.hourly_rate || row.tarifa_hora || '0')
+        const desiredMarginPercent = Number.parseFloat(row.desired_margin_percent || row.margen || '30')
+        const stockQuantity = Number.parseInt(row.stock_quantity || row.stock || '0', 10)
+        const stockAlertThreshold = Number.parseInt(row.stock_alert_threshold || row.umbral || '5', 10)
+        const totalCost = materialCost + (timeInvestedHours * hourlyRate)
+        const suggestedPrice = desiredMarginPercent < 100
+          ? totalCost / (1 - (desiredMarginPercent / 100))
+          : totalCost
+
+        return {
+          user_id: user.id,
+          product_name: productName,
+          material_cost: materialCost,
+          time_invested_hours: timeInvestedHours,
+          hourly_rate: hourlyRate,
+          desired_margin_percent: desiredMarginPercent,
+          suggested_price: suggestedPrice,
+          stock_quantity: stockQuantity,
+          stock_alert_threshold: stockAlertThreshold,
+        }
+      })
+
+    if (payload.length === 0) {
+      alert('No encontre columnas validas. Usa product_name o nombre, y costo/margen si quieres que se calcule bien.')
+      return
+    }
+
+    for (const item of payload) {
+      const { data: insertedProduct, error: productError } = await supabase
+        .from('products_roi')
+        .insert(item)
+        .select('id')
+        .single()
+
+      if (productError || !insertedProduct) {
+        continue
+      }
+
+      if ((item.stock_quantity || 0) > 0) {
+        await supabase.from('stock_movements').insert({
+          user_id: user.id,
+          product_id: insertedProduct.id,
+          movement_type: 'in',
+          quantity: item.stock_quantity,
+          reason: `Stock inicial importado para ${item.product_name}`,
+        })
+      }
+    }
+
+    await fetchProducts()
+    alert(`Importados ${payload.length} productos.`)
+  }
+
+  const handleImportClick = () => fileInputRef.current?.click()
+
   return (
     <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -135,6 +215,37 @@ export default function CatalogPage() {
       </div>
 
       <div className="space-y-8">
+        <div className="rounded-[2rem] border border-indigo-200 bg-indigo-50/60 dark:bg-indigo-900/10 dark:border-indigo-800/40 p-6 md:p-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="max-w-2xl">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400 mb-2">Importacion CSV</p>
+            <h2 className="text-2xl font-black text-slate-900 dark:text-white">Carga muchos productos sin escribirlos uno por uno.</h2>
+            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+              Descarga la plantilla, rellena tus columnas y sube el archivo. El sistema calcula el precio sugerido y puede guardar el stock inicial.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <a
+              href="/templates/productos.csv"
+              download
+              className="px-5 py-3 text-center bg-white dark:bg-slate-900 border border-indigo-100 dark:border-slate-800 rounded-2xl text-sm font-black text-indigo-700 dark:text-indigo-300 hover:shadow-md transition-all"
+            >
+              Descargar plantilla
+            </a>
+            <button
+              onClick={handleImportClick}
+              className="px-5 py-3 bg-indigo-600 text-white rounded-2xl text-sm font-black hover:bg-indigo-700 transition-all shadow-sm"
+            >
+              Importar CSV
+            </button>
+            <button
+              onClick={() => setShowImportHelp(true)}
+              className="px-5 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-black text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+            >
+              Ver ayuda
+            </button>
+          </div>
+        </div>
+
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-slate-100 dark:border-slate-800 pb-8">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
@@ -162,6 +273,19 @@ export default function CatalogPage() {
               <ArrowRight size={16} className="rotate-90" />
               CSV
             </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv,text/csv"
+              className="hidden"
+              onChange={async (event) => {
+                const file = event.target.files?.[0]
+                if (file) {
+                  await importProductsFromCSV(file)
+                }
+                event.target.value = ''
+              }}
+            />
 
             <div className="flex bg-slate-100 p-1.5 rounded-2xl dark:bg-slate-800 shadow-inner">
               <button
@@ -317,6 +441,29 @@ export default function CatalogPage() {
       {adjustingStock && (
         <AdjustStockModal product={adjustingStock} onClose={() => setAdjustingStock(null)} onSuccess={fetchProducts} />
       )}
+
+      <CsvImportHelp
+        isOpen={showImportHelp}
+        onClose={() => setShowImportHelp(false)}
+        title="Importar productos"
+        templateHref="/templates/productos.csv"
+        steps={[
+          'Descarga la plantilla de productos.',
+          'Completa una fila por producto.',
+          'Sube el CSV desde el boton Importar CSV.',
+          'Revisa que el precio sugerido y el stock inicial se hayan guardado.',
+        ]}
+        columns={[
+          'product_name',
+          'material_cost',
+          'time_invested_hours',
+          'hourly_rate',
+          'desired_margin_percent',
+          'stock_quantity',
+          'stock_alert_threshold',
+        ]}
+        example={['Ejemplo Producto', '1200', '2', '1500', '30', '10', '3']}
+      />
     </div>
   )
 }

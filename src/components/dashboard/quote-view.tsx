@@ -1,7 +1,7 @@
 'use client'
 
 import { formatCurrency } from '@/lib/utils'
-import { FileText, Printer, X } from 'lucide-react'
+import { FileText, Printer, X, MessageCircle, Copy } from 'lucide-react'
 import type { BusinessProfileRecord, SalesOrderItemRecord, SalesOrderRecord } from '@/lib/app-types'
 
 interface QuoteViewProps {
@@ -13,6 +13,40 @@ interface QuoteViewProps {
 export default function QuoteView({ quote, businessProfile, onClose }: QuoteViewProps) {
   const handlePrint = () => {
     window.print()
+  }
+
+  const buildQuoteMessage = () => {
+    const businessName = businessProfile?.business_name || 'Mi Negocio'
+    const clientName = quote.customer_name || 'Consumidor Final'
+    const currency = quote.currency_symbol || businessProfile?.currency_symbol || '$'
+    const lines = quote.items
+      .map((item) => `- ${item.quantity} x ${item.product_name} (${formatCurrency(item.total_price, currency)})`)
+      .join('\n')
+
+    return [
+      `${businessName} - ${quote.status === 'quote' ? 'Presupuesto' : 'Comprobante'}`,
+      `Cliente: ${clientName}`,
+      `Fecha: ${new Date(quote.created_at).toLocaleDateString()}`,
+      '',
+      lines,
+      '',
+      `Total: ${formatCurrency(quote.total_amount, currency)}`,
+      quote.notes ? `Notas: ${quote.notes}` : null,
+    ]
+      .filter(Boolean)
+      .join('\n')
+  }
+
+  const handleWhatsAppShare = () => {
+    const message = buildQuoteMessage()
+    const url = `https://wa.me/?text=${encodeURIComponent(message)}`
+    window.open(url, '_blank', 'noopener,noreferrer')
+  }
+
+  const handleCopy = async () => {
+    const message = buildQuoteMessage()
+    await navigator.clipboard.writeText(message)
+    alert('Resumen copiado al portapapeles.')
   }
 
   return (
@@ -71,10 +105,22 @@ export default function QuoteView({ quote, businessProfile, onClose }: QuoteView
           </div>
           <div className="flex items-center gap-2">
             <button
+              onClick={handleWhatsAppShare}
+              className="p-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors flex items-center gap-2 font-bold text-xs uppercase tracking-widest"
+            >
+              <MessageCircle size={16} /> WhatsApp
+            </button>
+            <button
+              onClick={handleCopy}
+              className="p-3 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 rounded-xl hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors flex items-center gap-2 font-bold text-xs uppercase tracking-widest"
+            >
+              <Copy size={16} /> Copiar
+            </button>
+            <button
               onClick={handlePrint}
               className="p-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl hover:bg-slate-200 transition-colors flex items-center gap-2 font-bold text-xs uppercase tracking-widest"
             >
-              <Printer size={16} /> Imprimir / PDF
+              <Printer size={16} /> PDF
             </button>
             <button
               onClick={onClose}
