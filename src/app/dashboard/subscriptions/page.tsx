@@ -22,6 +22,25 @@ const EXPENSE_TYPES = [
   { value: 'other', label: 'Otros', icon: FileText },
 ]
 
+function normalizeBillingCycle(value: string | null | undefined) {
+  const normalized = (value || 'monthly').trim().toLowerCase()
+
+  if (['yearly', 'anual', 'anuales', 'annual'].includes(normalized)) return 'yearly'
+  return 'monthly'
+}
+
+function normalizeExpenseType(value: string | null | undefined) {
+  const normalized = (value || 'software').trim().toLowerCase()
+
+  if (['utility', 'services', 'servicio', 'servicios', 'luz', 'agua', 'internet'].includes(normalized)) return 'utility'
+  if (['tax', 'impuesto', 'impuestos'].includes(normalized)) return 'tax'
+  if (['insurance', 'seguro', 'seguros'].includes(normalized)) return 'insurance'
+  if (['rent', 'alquiler', 'renta'].includes(normalized)) return 'rent'
+  if (['salary', 'sueldos', 'sueldo', 'personal', 'nomina', 'nómina'].includes(normalized)) return 'salary'
+  if (['other', 'otro', 'otros'].includes(normalized)) return 'other'
+  return 'software'
+}
+
 export default function SubscriptionsPage() {
   const [subscriptions, setSubscriptions] = useState<SubscriptionRecord[]>([])
   const [loading, setLoading] = useState(true)
@@ -128,9 +147,9 @@ export default function SubscriptionsPage() {
         user_id: user.id,
         name,
         cost: Number.parseFloat(row.cost || row.costo || '0'),
-        billing_cycle: (row.billing_cycle || row.ciclo || 'monthly').toLowerCase() === 'yearly' ? 'yearly' : 'monthly',
+        billing_cycle: normalizeBillingCycle(row.billing_cycle || row.ciclo),
         category: row.category || row.categoria || null,
-        expense_type: row.expense_type || row.tipo_de_gasto || 'software',
+        expense_type: normalizeExpenseType(row.expense_type || row.tipo_de_gasto || row.tipo),
       }
 
       const { error } = await supabase.from('subscriptions').insert(payload)

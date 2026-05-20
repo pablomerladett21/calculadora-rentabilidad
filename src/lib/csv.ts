@@ -1,4 +1,25 @@
+function detectDelimiter(text: string) {
+  const sample = text
+    .split(/\r?\n/)
+    .find((line) => line.trim().length > 0) || ''
+
+  const candidates = [',', ';', '\t']
+  let bestDelimiter = ','
+  let bestCount = -1
+
+  for (const candidate of candidates) {
+    const count = sample.split(candidate).length - 1
+    if (count > bestCount) {
+      bestCount = count
+      bestDelimiter = candidate
+    }
+  }
+
+  return bestDelimiter
+}
+
 export function parseCsv(text: string) {
+  const delimiter = detectDelimiter(text)
   const rows: string[][] = []
   let current = ''
   let row: string[] = []
@@ -18,8 +39,8 @@ export function parseCsv(text: string) {
       continue
     }
 
-    if (char === ',' && !inQuotes) {
-      row.push(current.trim())
+    if (char === delimiter && !inQuotes) {
+      row.push(current.trim().replace(/^\uFEFF/, ''))
       current = ''
       continue
     }
@@ -28,7 +49,7 @@ export function parseCsv(text: string) {
       if (char === '\r' && next === '\n') {
         i++
       }
-      row.push(current.trim())
+      row.push(current.trim().replace(/^\uFEFF/, ''))
       current = ''
       if (row.some((cell) => cell.length > 0)) {
         rows.push(row)
@@ -41,7 +62,7 @@ export function parseCsv(text: string) {
   }
 
   if (current.length > 0 || row.length > 0) {
-    row.push(current.trim())
+    row.push(current.trim().replace(/^\uFEFF/, ''))
     if (row.some((cell) => cell.length > 0)) {
       rows.push(row)
     }
@@ -55,7 +76,7 @@ export function parseCsv(text: string) {
     .map((dataRow) => {
       const record: Record<string, string> = {}
       headers.forEach((header, index) => {
-        record[header.trim().toLowerCase()] = (dataRow[index] || '').trim()
+        record[header.trim().toLowerCase().replace(/^\uFEFF/, '')] = (dataRow[index] || '').trim()
       })
       return record
     })
