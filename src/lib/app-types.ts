@@ -54,6 +54,7 @@ export interface SalesOrderRecord {
 
 export interface BusinessProfileRecord {
   id: string
+  email: string | null
   business_name: string | null
   logo_url: string | null
   currency_symbol: string
@@ -62,4 +63,15 @@ export interface BusinessProfileRecord {
   website_url: string | null
   instagram_handle: string | null
   whatsapp_phone: string | null
+  billing_status: 'trial' | 'paid' | 'disabled'
+}
+
+export interface AdminClientRecord {
+  id: string
+  email: string
+  business_name: string | null
+  billing_status: 'trial' | 'paid' | 'disabled'
+  product_count: number
+  sales_count: number
+  created_at: string | null
 }

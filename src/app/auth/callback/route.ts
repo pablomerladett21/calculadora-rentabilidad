@@ -1,5 +1,5 @@
-import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { createRouteSupabaseClient } from '@/lib/supabase/route-client'
 
 function buildProfileName(email: string | undefined) {
   if (!email) return null
@@ -18,24 +18,7 @@ export async function GET(request: NextRequest) {
   const code = requestUrl.searchParams.get('code')
   const redirectPath = requestUrl.searchParams.get('redirect') || '/dashboard'
   const response = NextResponse.redirect(new URL(redirectPath, request.url))
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            request.cookies.set(name, value)
-            response.cookies.set(name, value, options)
-          })
-        },
-      },
-    }
-  )
+  const supabase = createRouteSupabaseClient(request, response)
 
   if (!code) {
     return NextResponse.redirect(new URL('/login?error=missing_code', request.url))
@@ -58,10 +41,19 @@ export async function GET(request: NextRequest) {
       .eq('id', user.id)
       .maybeSingle()
 
-    if (!existingProfile && !profileError) {
+    if (!profileError && existingProfile) {
+      await supabase
+        .from('profiles')
+        .update({
+          email: user.email || null,
+        })
+        .eq('id', user.id)
+    } else if (!existingProfile && !profileError) {
       await supabase.from('profiles').insert({
         id: user.id,
+        email: user.email || null,
         business_name: buildProfileName(user.email),
+        billing_status: 'trial',
       })
     }
   }

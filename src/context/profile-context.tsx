@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase/client'
 
 interface Profile {
   id: string
+  email: string | null
   business_name: string | null
   logo_url: string | null
   currency_symbol: string
@@ -13,6 +14,7 @@ interface Profile {
   website_url: string | null
   instagram_handle: string | null
   whatsapp_phone: string | null
+  billing_status: 'trial' | 'paid' | 'disabled'
 }
 
 interface ProfileContextType {

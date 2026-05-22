@@ -111,6 +111,7 @@ export default function AccountSettingsModal({ isOpen, onClose, profile, onUpdat
 
       onUpdate({
         id: profile?.id || user.id,
+        email: profile?.email || user.email || null,
         business_name: formData.business_name || null,
         currency_symbol: formData.currency_symbol || '$',
         business_address: formData.business_address || null,
@@ -119,6 +120,7 @@ export default function AccountSettingsModal({ isOpen, onClose, profile, onUpdat
         instagram_handle: formData.instagram_handle || null,
         whatsapp_phone: formData.whatsapp_phone || null,
         logo_url: logoUrl || null,
+        billing_status: profile?.billing_status || 'trial',
       })
       onClose()
     } catch (err: unknown) {

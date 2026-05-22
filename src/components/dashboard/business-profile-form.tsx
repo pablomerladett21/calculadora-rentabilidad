@@ -95,6 +95,7 @@ export default function BusinessProfileForm({ profile, onSaved }: BusinessProfil
 
       onSaved({
         id: profile?.id || user.id,
+        email: profile?.email || user.email || null,
         business_name: formData.business_name || null,
         currency_symbol: formData.currency_symbol || '$',
         business_address: formData.business_address || null,
@@ -103,6 +104,7 @@ export default function BusinessProfileForm({ profile, onSaved }: BusinessProfil
         instagram_handle: formData.instagram_handle || null,
         whatsapp_phone: formData.whatsapp_phone || null,
         logo_url: logoUrl || null,
+        billing_status: profile?.billing_status || 'trial',
       })
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Error desconocido'

@@ -20,6 +20,19 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Environment variables
+
+For local development and production, add these variables to `.env.local` or your hosting platform:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+ADMIN_EMAIL_ALLOWLIST=tu-correo@ejemplo.com,otro@ejemplo.com
+```
+
+`ADMIN_EMAIL_ALLOWLIST` controls access to the admin panel, and `SUPABASE_SERVICE_ROLE_KEY` is only used on the server.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

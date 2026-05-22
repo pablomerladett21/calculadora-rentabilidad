@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { isAdminEmail } from '@/lib/admin'
 
 export async function proxy(request: NextRequest) {
   const response = NextResponse.next({
@@ -40,6 +41,7 @@ export async function proxy(request: NextRequest) {
 
   const isAuthPage = request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/register'
   const isDashboard = request.nextUrl.pathname.startsWith('/dashboard')
+  const isAdminRoute = request.nextUrl.pathname.startsWith('/admin')
 
   if (!user && isDashboard) {
     const url = request.nextUrl.clone()
@@ -52,6 +54,13 @@ export async function proxy(request: NextRequest) {
     const redirect = request.nextUrl.searchParams.get('redirect')
     const url = request.nextUrl.clone()
     url.pathname = redirect || '/dashboard'
+    url.searchParams.delete('redirect')
+    return NextResponse.redirect(url)
+  }
+
+  if (isAdminRoute && (!user || !isAdminEmail(user.email))) {
+    const url = request.nextUrl.clone()
+    url.pathname = user ? '/dashboard' : '/login'
     url.searchParams.delete('redirect')
     return NextResponse.redirect(url)
   }
