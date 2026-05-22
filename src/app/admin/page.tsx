@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react'
 import Link from 'next/link'
-import { BarChart3, ArrowLeft, Package, ShieldAlert, ShoppingCart, Users } from 'lucide-react'
+import { BarChart3, ArrowLeft, Package, ReceiptText, ShieldAlert, ShoppingCart, Users } from 'lucide-react'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import type { AdminClientRecord } from '@/lib/app-types'
 import AdminClientsTable from '@/components/admin/admin-clients-table'
@@ -51,24 +51,31 @@ async function fetchAllAuthUsers() {
 async function loadAdminData() {
   const supabase = createAdminSupabaseClient()
 
-  const [users, profilesRes, productsRes, salesRes] = await Promise.all([
+  const [users, profilesRes, productsRes, subscriptionsRes, salesRes] = await Promise.all([
     fetchAllAuthUsers(),
     supabase.from('profiles').select('id,email,business_name,billing_status'),
     supabase.from('products_roi').select('user_id'),
+    supabase.from('subscriptions').select('user_id'),
     supabase.from('sales_orders').select('user_id').eq('status', 'finalized'),
   ])
 
   if (profilesRes.error) throw profilesRes.error
   if (productsRes.error) throw productsRes.error
+  if (subscriptionsRes.error) throw subscriptionsRes.error
   if (salesRes.error) throw salesRes.error
 
   const profiles = (profilesRes.data || []) as ProfileRow[]
 
   const productCounts: Record<string, number> = {}
+  const subscriptionCounts: Record<string, number> = {}
   const salesCounts: Record<string, number> = {}
 
   ;(productsRes.data || []).forEach((row) => {
     productCounts[row.user_id] = (productCounts[row.user_id] || 0) + 1
+  })
+
+  ;(subscriptionsRes.data || []).forEach((row) => {
+    subscriptionCounts[row.user_id] = (subscriptionCounts[row.user_id] || 0) + 1
   })
 
   ;(salesRes.data || []).forEach((row) => {
@@ -92,6 +99,7 @@ async function loadAdminData() {
       business_name: businessName,
       billing_status: billingStatus,
       product_count: productCounts[user.id] || 0,
+      subscription_count: subscriptionCounts[user.id] || 0,
       sales_count: salesCounts[user.id] || 0,
       created_at: user.created_at || null,
     }
@@ -103,6 +111,7 @@ async function loadAdminData() {
     paidClients: clients.filter((client) => client.billing_status === 'paid').length,
     disabledClients: clients.filter((client) => client.billing_status === 'disabled').length,
     totalProducts: Object.values(productCounts).reduce((acc, value) => acc + value, 0),
+    totalSubscriptions: Object.values(subscriptionCounts).reduce((acc, value) => acc + value, 0),
     totalSales: Object.values(salesCounts).reduce((acc, value) => acc + value, 0),
   }
 
@@ -166,11 +175,12 @@ export default async function AdminPage() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-4">
           <StatCard title="Clientes" value={stats.totalClients} icon={Users} />
           <StatCard title="Prueba" value={stats.trialClients} icon={ShieldAlert} />
           <StatCard title="Pagos" value={stats.paidClients} icon={BarChart3} />
           <StatCard title="Productos" value={stats.totalProducts} icon={Package} />
+          <StatCard title="Gastos fijos" value={stats.totalSubscriptions} icon={ReceiptText} />
           <StatCard title="Ventas" value={stats.totalSales} icon={ShoppingCart} />
         </div>
 

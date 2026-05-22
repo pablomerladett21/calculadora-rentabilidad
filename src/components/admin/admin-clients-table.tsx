@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search, FileDown, Eye, X, Upload } from 'lucide-react'
+import { Search, FileDown, Eye, X, Upload, ReceiptText } from 'lucide-react'
 import type { AdminClientRecord } from '@/lib/app-types'
 import type { BillingStatus } from '@/lib/admin'
 import { cn } from '@/lib/utils'
@@ -94,13 +94,14 @@ export default function AdminClientsTable({ clients }: { clients: AdminClientRec
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px]">
-            <thead className="bg-slate-50 dark:bg-slate-900/60 text-[10px] uppercase tracking-[0.2em] text-slate-400 font-black">
+            <table className="w-full min-w-[1120px]">
+              <thead className="bg-slate-50 dark:bg-slate-900/60 text-[10px] uppercase tracking-[0.2em] text-slate-400 font-black">
               <tr>
                 <th className="text-left px-6 py-4">Cliente</th>
                 <th className="text-left px-6 py-4">Email</th>
                 <th className="text-left px-6 py-4">Estado</th>
                 <th className="text-center px-6 py-4">Productos</th>
+                <th className="text-center px-6 py-4">Gastos fijos</th>
                 <th className="text-center px-6 py-4">Ventas</th>
                 <th className="text-right px-6 py-4">Acciones</th>
               </tr>
@@ -141,6 +142,11 @@ export default function AdminClientsTable({ clients }: { clients: AdminClientRec
                     </span>
                   </td>
                   <td className="px-6 py-4 text-center">
+                    <span className="inline-flex items-center justify-center min-w-12 px-3 py-1.5 rounded-full bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300 font-black text-sm">
+                      {client.subscription_count}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-center">
                     <span className="inline-flex items-center justify-center min-w-12 px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200 font-black text-sm">
                       {client.sales_count}
                     </span>
@@ -175,7 +181,7 @@ export default function AdminClientsTable({ clients }: { clients: AdminClientRec
 
               {filteredClients.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-16 text-center text-slate-400">
+                  <td colSpan={7} className="py-16 text-center text-slate-400">
                     No se encontraron clientes con ese filtro.
                   </td>
                 </tr>
@@ -225,6 +231,12 @@ function ClientDetailModal({
         <div className="p-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
           <InfoCard label="Estado" value={client.billing_status} />
           <InfoCard label="Productos" value={client.product_count} />
+          <InfoCard
+            label="Gastos fijos"
+            value={client.subscription_count}
+            accent="amber"
+            icon={ReceiptText}
+          />
           <InfoCard label="Ventas" value={client.sales_count} />
         </div>
       </div>
@@ -232,11 +244,35 @@ function ClientDetailModal({
   )
 }
 
-function InfoCard({ label, value }: { label: string; value: string | number }) {
+function InfoCard({
+  label,
+  value,
+  accent,
+  icon: Icon,
+}: {
+  label: string
+  value: string | number
+  accent?: 'default' | 'amber'
+  icon?: typeof ReceiptText
+}) {
+  const cardStyles =
+    accent === 'amber'
+      ? 'border-amber-200 dark:border-amber-900/40 bg-amber-50/80 dark:bg-amber-900/20'
+      : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40'
+
+  const valueStyles = accent === 'amber' ? 'text-amber-700 dark:text-amber-300' : 'text-slate-900 dark:text-white'
+
   return (
-    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 p-4">
-      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{label}</p>
-      <p className="mt-2 text-xl font-black text-slate-900 dark:text-white">{value}</p>
+    <div className={cn('rounded-2xl border p-4 shadow-sm', cardStyles)}>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{label}</p>
+        {Icon ? (
+          <div className="w-8 h-8 rounded-xl bg-white/70 dark:bg-slate-950/40 flex items-center justify-center text-amber-600 dark:text-amber-300">
+            <Icon size={16} />
+          </div>
+        ) : null}
+      </div>
+      <p className={cn('mt-2 text-xl font-black', valueStyles)}>{value}</p>
     </div>
   )
 }

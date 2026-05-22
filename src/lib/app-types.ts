@@ -72,6 +72,7 @@ export interface AdminClientRecord {
   business_name: string | null
   billing_status: 'trial' | 'paid' | 'disabled'
   product_count: number
+  subscription_count: number
   sales_count: number
   created_at: string | null
 }
