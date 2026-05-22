@@ -1,9 +1,15 @@
 import AuthForm from '@/components/auth-form'
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ redirect?: string }>
+}) {
+  const resolvedSearchParams = await searchParams
+
   return (
     <div className="flex min-h-screen items-center justify-center p-4 bg-zinc-50 dark:bg-black">
-      <AuthForm type="login" />
+      <AuthForm type="login" redirectPath={resolvedSearchParams?.redirect || '/dashboard'} />
     </div>
   )
 }

@@ -6,9 +6,10 @@ import { LogIn, UserPlus, Loader2 } from 'lucide-react'
 
 interface AuthFormProps {
   type: 'login' | 'register'
+  redirectPath: string
 }
 
-export default function AuthForm({ type }: AuthFormProps) {
+export default function AuthForm({ type, redirectPath }: AuthFormProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -27,7 +28,7 @@ export default function AuthForm({ type }: AuthFormProps) {
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback?redirect=/dashboard`,
+            emailRedirectTo: `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(redirectPath)}`,
           },
         })
 
@@ -40,7 +41,7 @@ export default function AuthForm({ type }: AuthFormProps) {
         })
 
         if (signInError) throw signInError
-        window.location.href = '/dashboard'
+        window.location.href = redirectPath
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Ocurrio un error inesperado')

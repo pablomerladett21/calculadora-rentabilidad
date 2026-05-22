@@ -60,8 +60,13 @@ export async function proxy(request: NextRequest) {
 
   if (isAdminRoute && (!user || !isAdminEmail(user.email))) {
     const url = request.nextUrl.clone()
-    url.pathname = user ? '/dashboard' : '/login'
-    url.searchParams.delete('redirect')
+    if (user) {
+      url.pathname = '/dashboard'
+      url.searchParams.delete('redirect')
+    } else {
+      url.pathname = '/login'
+      url.searchParams.set('redirect', request.nextUrl.pathname)
+    }
     return NextResponse.redirect(url)
   }
 
