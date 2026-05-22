@@ -79,15 +79,19 @@ export default function LandingPage() {
     <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(79,70,229,0.15),_transparent_30%),radial-gradient(circle_at_top_right,_rgba(16,185,129,0.14),_transparent_26%),linear-gradient(to_bottom,_#ffffff,_#f8fafc_45%,_#eef2ff_100%)] text-slate-900 dark:bg-[radial-gradient(circle_at_top_left,_rgba(79,70,229,0.25),_transparent_30%),radial-gradient(circle_at_top_right,_rgba(16,185,129,0.18),_transparent_26%),linear-gradient(to_bottom,_#020617,_#0f172a_55%,_#111827_100%)] dark:text-white">
       <div className="mx-auto max-w-7xl px-6 py-6 lg:py-8">
         <header className="flex items-center justify-between gap-4 rounded-3xl border border-white/60 bg-white/70 px-5 py-4 shadow-sm backdrop-blur dark:border-slate-800/70 dark:bg-slate-950/70">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-500/30">
-              <Sparkles size={20} />
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-500/30">
+                <Sparkles size={20} />
+              </div>
+              <div className="leading-none">
+                <p className="text-sm font-black uppercase tracking-[0.32em] text-indigo-500 md:text-base">
+                  BizTracker ROI
+                </p>
+                <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-300 md:text-sm">
+                  Mas ventas. Mas margen. Menos caos.
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-500">BizTracker ROI</p>
-              <p className="text-sm font-bold text-slate-600 dark:text-slate-300">Mas ventas. Mas margen. Menos caos.</p>
-            </div>
-          </div>
 
           <div className="flex items-center gap-2">
             <Link
@@ -126,14 +130,14 @@ export default function LandingPage() {
                 href="/register?redirect=/dashboard"
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-6 py-4 text-sm font-black uppercase tracking-widest text-white shadow-xl shadow-emerald-500/25 transition hover:bg-emerald-700"
               >
-                Quiero probarlo gratis
+                Empezar gratis hoy
                 <ArrowRight size={16} />
               </Link>
               <Link
                 href="#precio"
                 className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-4 text-sm font-black uppercase tracking-widest text-slate-700 transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900"
               >
-                Ver precio
+                Ver plan y precio
               </Link>
             </div>
 
@@ -279,7 +283,7 @@ export default function LandingPage() {
                 href="/register?redirect=/dashboard"
                 className="mt-8 inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-6 py-4 text-sm font-black uppercase tracking-widest text-indigo-700 transition hover:bg-indigo-50"
               >
-                Empezar gratis
+                Probar sin tarjeta
                 <ArrowRight size={16} />
               </Link>
             </div>
@@ -320,14 +324,14 @@ export default function LandingPage() {
                 href="/register?redirect=/dashboard"
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-6 py-4 text-sm font-black uppercase tracking-widest text-white shadow-lg shadow-indigo-500/25 transition hover:bg-indigo-700"
               >
-                Quiero mis 15 dias gratis
+                Probar 15 dias gratis
                 <ArrowRight size={16} />
               </Link>
               <Link
                 href="/login?redirect=/dashboard"
                 className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-4 text-sm font-black uppercase tracking-widest text-slate-700 transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900"
               >
-                Ya tengo cuenta
+                Entrar a mi cuenta
               </Link>
             </div>
           </div>
