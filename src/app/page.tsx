@@ -2,17 +2,17 @@ import type { Metadata } from 'next'
 import LandingPage from '@/components/marketing/landing-page'
 
 export const metadata: Metadata = {
-  title: 'Rentabilidad, stock y presupuestos para talleres',
+  title: 'Herramienta para talleres que quieren vender con margen',
   description:
-    'Una app simple para talleres y negocios de producción que quieren saber si ganan plata, controlar stock y convertir presupuestos en ventas.',
-  keywords: ['rentabilidad', 'stock', 'presupuestos', 'talleres', 'producción', 'ventas'],
+    'Deja Excel, mira tu margen real, controla stock y convierte presupuestos en ventas con una app simple para talleres y negocios de producción.',
+  keywords: ['rentabilidad', 'stock', 'presupuestos', 'talleres', 'produccion', 'ventas'],
   alternates: {
     canonical: '/',
   },
   openGraph: {
-    title: 'Rentabilidad, stock y presupuestos para talleres',
+    title: 'Herramienta para talleres que quieren vender con margen',
     description:
-      '15 días gratis, sin tarjeta. Después USD 12/mes para talleres y negocios de producción.',
+      '15 dias gratis, sin tarjeta. Luego USD 12/mes para talleres y negocios de produccion.',
     type: 'website',
   },
 }
