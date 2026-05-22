@@ -118,10 +118,10 @@ export default function LandingPage() {
 
             <div className="space-y-5">
               <h1 className="max-w-3xl text-5xl font-black tracking-tight text-slate-950 dark:text-white md:text-6xl">
-                Deja de adivinar. Mira cuanto gana tu taller, que stock te queda y que presupuesto conviene cerrar.
+                Vende con margen, controla tu stock y sabe en minutos si tu taller esta ganando plata.
               </h1>
               <p className="max-w-2xl text-lg leading-8 text-slate-600 dark:text-slate-300">
-                Una app simple para talleres y negocios de produccion que quieren dejar Excel, vender con margen y ordenar su flujo de trabajo sin perder tiempo.
+                Una app simple para talleres y negocios de produccion que quieren dejar Excel, cerrar presupuestos mas rapido y ordenar su flujo de trabajo sin perder ventas.
               </p>
             </div>
 
@@ -245,10 +245,10 @@ export default function LandingPage() {
             <div className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-sm dark:border-slate-800 dark:bg-slate-950">
             <p className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-500">Precio simple</p>
             <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-950 dark:text-white">
-                Un solo plan para arrancar sin friccion.
+                Un solo plan para probar hoy y seguir solo si realmente te sirve.
               </h2>
               <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">
-                Proba todo gratis durante 15 dias. Si te sirve, seguís con el plan pago de USD 12/mes.
+                Proba todo gratis durante 15 dias, sin tarjeta. Si te sirve, seguis con el plan pago de USD 12/mes.
               </p>
               <div className="mt-8 rounded-[1.75rem] bg-slate-950 p-6 text-white dark:bg-slate-900">
                 <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Plan único</p>
@@ -258,8 +258,8 @@ export default function LandingPage() {
                 </div>
                 <div className="mt-5 space-y-3 text-sm text-slate-200">
                   <PriceLine text="15 dias gratis sin tarjeta" />
-                  <PriceLine text="Presupuestos que cierran" />
-                  <PriceLine text="Stock y gastos fijos" />
+                  <PriceLine text="Presupuestos que convierten" />
+                  <PriceLine text="Stock, margen y gastos fijos" />
                   <PriceLine text="Importacion CSV" />
                 </div>
               </div>
@@ -267,9 +267,9 @@ export default function LandingPage() {
 
             <div className="rounded-[2rem] border border-indigo-200 bg-gradient-to-br from-indigo-600 to-indigo-700 p-8 text-white shadow-2xl shadow-indigo-500/20">
               <p className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-100/80">Para talleres</p>
-              <h2 className="mt-2 text-3xl font-black tracking-tight">Si hoy vendes por WhatsApp, esta app te ayuda a vender mejor y con mas control.</h2>
+              <h2 className="mt-2 text-3xl font-black tracking-tight">Si hoy vendes por WhatsApp, esto te ayuda a cerrar mas rapido y con mas margen.</h2>
               <p className="mt-3 text-sm leading-7 text-indigo-100/90">
-                La propuesta esta pensada para negocios chicos que necesitan saber que producto deja margen, cuanto stock queda y que presupuesto se puede convertir en venta.
+                La propuesta esta pensada para negocios chicos que necesitan saber que producto deja margen, cuanto stock queda y que presupuesto conviene empujar primero.
               </p>
               <div className="mt-8 grid gap-3 sm:grid-cols-2">
                 {['Mas margen', 'Stock critico', 'Ventas del dia', 'Gastos visibles'].map((item) => (
@@ -317,7 +317,7 @@ export default function LandingPage() {
           <div className="rounded-[2rem] border border-slate-200 bg-white px-6 py-8 text-center shadow-sm dark:border-slate-800 dark:bg-slate-950">
             <p className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-500">Listo para empezar</p>
             <h2 className="mx-auto mt-2 max-w-3xl text-3xl font-black tracking-tight text-slate-950 dark:text-white md:text-4xl">
-              Deja de adivinar si tu taller gana plata. Miralo en números y decidí mejor.
+              Deja de adivinar si tu taller gana plata. Miralo en números y arrancá hoy.
             </h2>
             <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
               <Link
