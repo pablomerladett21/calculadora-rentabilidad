@@ -118,7 +118,7 @@ export default function LandingPage() {
 
             <div className="space-y-5">
               <h1 className="max-w-3xl text-5xl font-black tracking-tight text-slate-950 dark:text-white md:text-6xl">
-                Vende con margen, controla tu stock y sabe en minutos si tu taller esta ganando plata.
+                Vende con margen, controla tu stock y entiende en minutos si tu taller esta ganando plata.
               </h1>
               <p className="max-w-2xl text-lg leading-8 text-slate-600 dark:text-slate-300">
                 Una app simple para talleres y negocios de produccion que quieren dejar Excel, cerrar presupuestos mas rapido y ordenar su flujo de trabajo sin perder ventas.
@@ -245,7 +245,7 @@ export default function LandingPage() {
             <div className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-sm dark:border-slate-800 dark:bg-slate-950">
             <p className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-500">Precio simple</p>
             <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-950 dark:text-white">
-                Un solo plan para probar hoy y seguir solo si realmente te sirve.
+                Un solo plan para empezar hoy y seguir solo si te hace ganar mas.
               </h2>
               <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">
                 Proba todo gratis durante 15 dias, sin tarjeta. Si te sirve, seguis con el plan pago de USD 12/mes.
@@ -258,8 +258,8 @@ export default function LandingPage() {
                 </div>
                 <div className="mt-5 space-y-3 text-sm text-slate-200">
                   <PriceLine text="15 dias gratis sin tarjeta" />
-                  <PriceLine text="Presupuestos que convierten" />
-                  <PriceLine text="Stock, margen y gastos fijos" />
+                  <PriceLine text="Presupuestos que venden" />
+                  <PriceLine text="Stock, margen y gastos" />
                   <PriceLine text="Importacion CSV" />
                 </div>
               </div>
@@ -324,7 +324,7 @@ export default function LandingPage() {
                 href="/register?redirect=/dashboard"
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-6 py-4 text-sm font-black uppercase tracking-widest text-white shadow-lg shadow-indigo-500/25 transition hover:bg-indigo-700"
               >
-                Probar 15 dias gratis
+                Quiero probar gratis
                 <ArrowRight size={16} />
               </Link>
               <Link
