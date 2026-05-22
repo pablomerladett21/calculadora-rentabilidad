@@ -9,6 +9,7 @@ import { useProfile } from '@/context/profile-context'
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid, Area, AreaChart } from 'recharts'
 import type { ProductRecord, SubscriptionRecord } from '@/lib/app-types'
 import SetupScreen from '@/components/dashboard/setup-screen'
+import AccountSuspendedBanner from '@/components/dashboard/account-suspended-banner'
 
 interface ChartPoint {
   day: string
@@ -195,6 +196,7 @@ export default function DashboardPage() {
 
   const colors = ['#4f46e5', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6']
   const needsSetup = !loading && (!profile?.business_name || stats.productCount === 0)
+  const isSuspended = profile?.billing_status === 'disabled'
 
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -225,6 +227,8 @@ export default function DashboardPage() {
         </div>
       </div>
       </div>
+
+      {isSuspended && <AccountSuspendedBanner />}
 
       {needsSetup && (
         <SetupScreen

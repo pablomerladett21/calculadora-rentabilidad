@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { Plus, Loader2, X, Landmark } from 'lucide-react'
+import { useProfile } from '@/context/profile-context'
+import AccountSuspendedBanner from './account-suspended-banner'
 
 // Tipos de gasto disponibles
 const EXPENSE_TYPES = [
@@ -21,6 +23,8 @@ interface SubscriptionsFormProps {
 }
 
 export default function SubscriptionsForm({ onSuccess, onCancel }: SubscriptionsFormProps) {
+  const { profile } = useProfile()
+  const isSuspended = profile?.billing_status === 'disabled'
   const [name, setName] = useState('')
   const [cost, setCost] = useState('')
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly')
@@ -28,6 +32,17 @@ export default function SubscriptionsForm({ onSuccess, onCancel }: Subscriptions
   const [expenseType, setExpenseType] = useState('software')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  if (isSuspended) {
+    return (
+      <div className="space-y-6">
+        <AccountSuspendedBanner />
+        <div className="rounded-[2rem] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 text-sm text-slate-500 dark:text-slate-300">
+          Los gastos fijos están bloqueados mientras la cuenta esté suspendida.
+        </div>
+      </div>
+    )
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

@@ -4,6 +4,7 @@ import { Calculator, Save, Loader2, Info, Sparkles, Package } from 'lucide-react
 import { formatCurrency } from '@/lib/utils'
 import Link from 'next/link'
 import { useProfile } from '@/context/profile-context'
+import AccountSuspendedBanner from './account-suspended-banner'
 import { z } from 'zod'
 
 const productSchema = z.object({
@@ -22,6 +23,7 @@ interface RoiFormProps {
 
 export default function RoiForm({ onSuccess }: RoiFormProps) {
   const { profile } = useProfile()
+  const isSuspended = profile?.billing_status === 'disabled'
   const [productName, setProductName] = useState('')
   const [materialCost, setMaterialCost] = useState('')
   const [timeInvested, setTimeInvested] = useState('')
@@ -41,6 +43,17 @@ export default function RoiForm({ onSuccess }: RoiFormProps) {
   const totalCost = material + (time * rate)
   const suggestedPrice = margin < 100 ? totalCost / (1 - (margin / 100)) : 0
   const profit = suggestedPrice - totalCost
+
+  if (isSuspended) {
+    return (
+      <div className="space-y-6">
+        <AccountSuspendedBanner />
+        <div className="rounded-[2rem] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 text-sm text-slate-500 dark:text-slate-300">
+          Si necesitás reactivar la cuenta, pedile a admin que cambie el estado a <span className="font-black">Prueba</span> o <span className="font-black">Pago</span>.
+        </div>
+      </div>
+    )
+  }
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()

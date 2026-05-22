@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { ShoppingCart, Plus, Search, Trash2, FileText, User, Edit2, AlertTriangle } from 'lucide-react'
 import { useProfile } from '@/context/profile-context'
+import AccountSuspendedBanner from './account-suspended-banner'
 import { formatCurrency } from '@/lib/utils'
 import { z } from 'zod'
 import type { ProductRecord } from '@/lib/app-types'
@@ -38,6 +39,7 @@ interface SalesLogFormProps {
 
 export default function SalesLogForm({ onSuccess, mode = 'sale' }: SalesLogFormProps) {
   const { profile } = useProfile()
+  const isSuspended = profile?.billing_status === 'disabled'
   const [products, setProducts] = useState<ProductOption[]>([])
   const [selectedProductId, setSelectedProductId] = useState('')
   const [productSearch, setProductSearch] = useState('')
@@ -150,6 +152,17 @@ export default function SalesLogForm({ onSuccess, mode = 'sale' }: SalesLogFormP
 
   const subtotal = items.reduce((sum, item) => sum + item.total_price, 0)
   const hasStockWarning = mode === 'sale' && items.some((item) => item.quantity > item.available_stock)
+
+  if (isSuspended) {
+    return (
+      <div className="space-y-6">
+        <AccountSuspendedBanner />
+        <div className="rounded-[2rem] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 text-sm text-slate-500 dark:text-slate-300">
+          La registración de ventas y presupuestos queda pausada hasta reactivar la cuenta.
+        </div>
+      </div>
+    )
+  }
 
   const handleSubmit = async (submitStatus: 'finalized' | 'quote') => {
     setLoading(true)
