@@ -20,19 +20,6 @@ const productSchema = z.object({
 
 interface RoiFormProps {
   onSuccess: () => void
-
-const productSchema = z.object({
-  product_name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres').max(100),
-  material_cost: z.number().min(0, 'El costo no puede ser negativo'),
-  time_invested_hours: z.number().min(0, 'El tiempo no puede ser negativo'),
-  hourly_rate: z.number().min(0, 'La tarifa no puede ser negativa'),
-  desired_margin_percent: z.number().min(0).max(99, 'El margen debe ser menor al 100%'),
-  stock_quantity: z.number().min(0, 'El stock no puede ser negativo'),
-  stock_alert_threshold: z.number().min(0, 'El umbral no puede ser negativo'),
-})
-
-interface RoiFormProps {
-  onSuccess: () => void
 }
 
 export default function RoiForm({ onSuccess }: RoiFormProps) {
