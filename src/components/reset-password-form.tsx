@@ -145,6 +145,15 @@ export default function ResetPasswordForm({ redirectPath }: ResetPasswordFormPro
           >
             {loading ? <Loader2 className="animate-spin" size={20} /> : 'Guardar nueva contrasena'}
           </button>
+          
+          <div className="mt-6 text-center text-sm">
+            <Link
+              href="/login"
+              className="font-semibold text-indigo-600 hover:text-indigo-500 transition-colors"
+            >
+              Volver a iniciar sesion
+            </Link>
+          </div>
         </form>
       ) : (
         <div className="space-y-4 text-center">
