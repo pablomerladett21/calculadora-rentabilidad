@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Herramienta para talleres que quieren vender con margen',
     description:
-      '15 dias gratis, sin tarjeta. Luego USD 12/mes para talleres y negocios de produccion.',
+      'Plan 100% gratis disponible. Controla stock y convierte presupuestos en ventas.',
     type: 'website',
   },
 }

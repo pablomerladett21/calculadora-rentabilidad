@@ -15,6 +15,7 @@ interface Profile {
   instagram_handle: string | null
   whatsapp_phone: string | null
   billing_status: 'trial' | 'paid' | 'disabled'
+  is_founder?: boolean | null
 }
 
 interface ProfileContextType {

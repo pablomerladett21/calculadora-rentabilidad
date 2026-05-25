@@ -12,8 +12,8 @@ import {
 } from 'lucide-react'
 
 const highlights = [
-  '15 dias gratis, sin tarjeta',
-  'Luego USD 12/mes',
+  'Plan 100% gratis disponible',
+  'Sin tarjeta de credito inicial',
   'Hecho para talleres que venden por presupuesto',
 ]
 
@@ -57,8 +57,8 @@ const steps = [
 
 const faqs = [
   {
-    q: 'Necesito tarjeta para probar?',
-    a: 'No. Tenes 15 dias gratis para probar todo el flujo antes de pagar.',
+    q: 'Como funciona el plan gratis?',
+    a: 'Puedes usar la plataforma sin costo con un limite de 20 productos registrados y 10 presupuestos al mes. Ideal para empezar.',
   },
   {
     q: 'Sirve para talleres?',
@@ -113,7 +113,7 @@ export default function LandingPage() {
           <div className="space-y-7 sm:space-y-8">
             <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-white/80 px-4 py-2 text-xs font-black uppercase tracking-[0.25em] text-indigo-600 shadow-sm dark:border-indigo-900/40 dark:bg-slate-950/80 dark:text-indigo-300">
               <ShieldCheck size={14} />
-              15 dias gratis sin tarjeta
+              Empieza gratis hoy
             </div>
 
             <div className="space-y-4 sm:space-y-5">
@@ -243,51 +243,57 @@ export default function LandingPage() {
         <section id="precio" className="py-8 lg:py-16">
           <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
             <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-8 dark:border-slate-800 dark:bg-slate-950">
-              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-500">Precio simple</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-500">Plan Inicial</p>
               <h2 className="mt-2 text-2xl font-black tracking-tight text-slate-950 dark:text-white sm:text-3xl">
-                Un solo plan para empezar hoy y seguir solo si te hace ganar mas.
+                Empieza a ordenar tu negocio sin pagar nada.
               </h2>
               <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">
-                Proba todo gratis durante 15 dias, sin tarjeta. Si te sirve, seguis con el plan pago de USD 12/mes.
+                Ideal para talleres o emprendimientos que dan sus primeros pasos. Unete hoy sin registrar tu tarjeta de credito.
               </p>
-              <div className="mt-8 rounded-[1.75rem] bg-slate-950 p-6 text-white dark:bg-slate-900">
-                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Plan unico</p>
+              <div className="mt-8 rounded-[1.75rem] bg-slate-100 p-6 text-slate-900 dark:bg-slate-900 dark:text-white">
+                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Gratis siempre</p>
                 <div className="mt-3 flex items-end gap-2">
-                  <span className="text-4xl font-black tracking-tight sm:text-5xl">USD 12</span>
-                  <span className="pb-1 text-sm font-bold text-slate-400">/ mes</span>
+                  <span className="text-4xl font-black tracking-tight sm:text-5xl">USD 0</span>
                 </div>
-                <div className="mt-5 space-y-3 text-sm text-slate-200">
-                  <PriceLine text="15 dias gratis sin tarjeta" />
-                  <PriceLine text="Presupuestos que venden" />
-                  <PriceLine text="Stock, margen y gastos" />
-                  <PriceLine text="Importacion CSV" />
+                <div className="mt-5 space-y-3 text-sm text-slate-700 dark:text-slate-300">
+                  <PriceLine text="Maximo 20 productos" />
+                  <PriceLine text="10 presupuestos al mes" />
+                  <PriceLine text="Stock y margen basico" />
+                  <PriceLine text="Soporte comunitario" />
                 </div>
               </div>
             </div>
 
-            <div className="rounded-[2rem] border border-indigo-200 bg-gradient-to-br from-indigo-600 to-indigo-700 p-6 text-white shadow-2xl shadow-indigo-500/20 sm:p-8">
-              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-100/80">Para talleres</p>
+            <div className="rounded-[2rem] border border-emerald-200 bg-gradient-to-br from-emerald-600 to-emerald-800 p-6 text-white shadow-2xl shadow-emerald-500/20 sm:p-8">
+              <div className="flex items-center gap-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-100/80">Licencia Fundador</p>
+                <span className="rounded-full bg-amber-400 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest text-amber-900">Solo 50 cupos</span>
+              </div>
               <h2 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">
-                Si hoy vendes por WhatsApp, esta app te ayuda a cerrar mas rapido y con mas margen.
+                Paga una vez. Usalo para siempre.
               </h2>
-              <p className="mt-3 text-sm leading-7 text-indigo-100/90">
-                La propuesta esta pensada para negocios chicos que necesitan saber que producto deja margen, cuanto stock queda y que presupuesto conviene empujar primero.
+              <p className="mt-3 text-sm leading-7 text-emerald-100/90">
+                Lleva tu negocio al siguiente nivel sin suscripciones mensuales. Desbloquea todo el potencial de BizTracker con un unico pago.
               </p>
-              <div className="mt-8 grid gap-3 sm:grid-cols-2">
-                {['Mas margen', 'Stock critico', 'Ventas del dia', 'Gastos visibles'].map((item) => (
+              <div className="mt-6 flex items-end gap-2">
+                <span className="text-5xl font-black tracking-tight sm:text-6xl">USD 49</span>
+                <span className="pb-2 text-sm font-bold text-emerald-200 line-through">USD 144/ano</span>
+              </div>
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                {['Productos ilimitados', 'Presupuestos ilimitados', 'Sin pagos mensuales', 'Soporte prioritario'].map((item) => (
                   <div key={item} className="flex items-center gap-2 rounded-2xl bg-white/10 px-4 py-3 text-sm font-bold">
-                    <Check size={16} className="text-emerald-300" />
+                    <Check size={16} className="text-amber-300" />
                     {item}
                   </div>
                 ))}
               </div>
               <Link
                 href="/register?redirect=/dashboard"
-                className="mt-8 inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-6 py-4 text-sm font-black uppercase tracking-widest text-indigo-700 transition hover:bg-indigo-50"
+                className="mt-8 w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-6 py-4 text-sm font-black uppercase tracking-widest text-emerald-800 transition hover:bg-emerald-50 shadow-xl shadow-emerald-900/20"
               >
-                Probar sin tarjeta
-                <ArrowRight size={16} />
+                Comenzar gratis
               </Link>
+              <p className="mt-4 text-center text-xs text-emerald-200/80 font-medium">Primero te registras gratis, luego desbloqueas tu licencia desde el panel.</p>
             </div>
           </div>
         </section>

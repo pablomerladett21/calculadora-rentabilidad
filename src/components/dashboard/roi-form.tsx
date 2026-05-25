@@ -6,6 +6,20 @@ import Link from 'next/link'
 import { useProfile } from '@/context/profile-context'
 import AccountSuspendedBanner from './account-suspended-banner'
 import { z } from 'zod'
+import { useEffect } from 'react'
+
+const productSchema = z.object({
+  product_name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres').max(100),
+  material_cost: z.number().min(0, 'El costo no puede ser negativo'),
+  time_invested_hours: z.number().min(0, 'El tiempo no puede ser negativo'),
+  hourly_rate: z.number().min(0, 'La tarifa no puede ser negativa'),
+  desired_margin_percent: z.number().min(0).max(99, 'El margen debe ser menor al 100%'),
+  stock_quantity: z.number().min(0, 'El stock no puede ser negativo'),
+  stock_alert_threshold: z.number().min(0, 'El umbral no puede ser negativo'),
+})
+
+interface RoiFormProps {
+  onSuccess: () => void
 
 const productSchema = z.object({
   product_name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres').max(100),
@@ -34,6 +48,17 @@ export default function RoiForm({ onSuccess }: RoiFormProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+  const [productCount, setProductCount] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (profile && profile.is_founder !== true) {
+      supabase
+        .from('products_roi')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', profile.id)
+        .then(({ count }) => setProductCount(count || 0))
+    }
+  }, [profile])
 
   const material = parseFloat(materialCost) || 0
   const time = parseFloat(timeInvested) || 0
@@ -50,6 +75,35 @@ export default function RoiForm({ onSuccess }: RoiFormProps) {
         <AccountSuspendedBanner />
         <div className="rounded-[2rem] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 text-sm text-slate-500 dark:text-slate-300">
           Si necesitás reactivar la cuenta, pedile a admin que cambie el estado a <span className="font-black">Prueba</span> o <span className="font-black">Pago</span>.
+        </div>
+      </div>
+    )
+  }
+
+  const isLimitReached = profile?.is_founder !== true && productCount !== null && productCount >= 20;
+
+  if (isLimitReached) {
+    return (
+      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="p-10 rounded-[2rem] border border-amber-200 bg-amber-50/50 dark:bg-amber-900/10 dark:border-amber-800/40 text-center flex flex-col items-center">
+          <div className="w-16 h-16 bg-amber-100 dark:bg-amber-900/30 rounded-2xl flex items-center justify-center text-amber-600 dark:text-amber-400 mb-6 shadow-sm">
+            <Package size={32} />
+          </div>
+          <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-2">Límite de productos alcanzado</h2>
+          <p className="text-slate-600 dark:text-slate-300 max-w-md mb-8 leading-relaxed">
+            Tu plan gratuito permite registrar hasta 20 productos. Has alcanzado el límite. 
+            Adquiere la <span className="font-bold text-slate-900 dark:text-white">Licencia Fundador</span> para crear productos ilimitados.
+          </p>
+          <a
+            href="https://wa.me/59899000000?text=Hola,%20quiero%20adquirir%20la%20Licencia%20Fundador%20de%20BizTracker%20por%20$49"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-8 py-4 text-sm font-black uppercase tracking-widest text-white shadow-xl shadow-emerald-500/25 transition hover:bg-emerald-700 hover:-translate-y-1"
+          >
+            <Sparkles size={18} />
+            Desbloquear Licencia Fundador ($49)
+          </a>
+          <p className="mt-4 text-[10px] text-slate-400 font-bold uppercase tracking-widest">Pago único. Sin suscripciones.</p>
         </div>
       </div>
     )
