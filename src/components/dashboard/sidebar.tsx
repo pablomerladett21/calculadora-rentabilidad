@@ -13,12 +13,14 @@ import {
   FileText,
   Landmark,
   Boxes,
+  TrendingDown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const navigation = [
   { name: 'Resumen', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Costos Fijos', href: '/dashboard/subscriptions', icon: Landmark },
+  { name: 'Gastos Variables', href: '/dashboard/variable-expenses', icon: TrendingDown },
   { name: 'Precio y Margen', href: '/dashboard/roi-calc', icon: Calculator },
   { name: 'Productos', href: '/dashboard/catalog', icon: Archive },
   { name: 'Ventas', href: '/dashboard/sales', icon: ShoppingCart },

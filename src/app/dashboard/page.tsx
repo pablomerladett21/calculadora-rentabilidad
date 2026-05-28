@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
-import { TrendingUp, CreditCard, Package, Plus, ArrowRight, Sparkles, ShoppingCart, type LucideIcon } from 'lucide-react'
+import { TrendingUp, TrendingDown, CreditCard, Package, Plus, ArrowRight, Sparkles, ShoppingCart, type LucideIcon } from 'lucide-react'
 import Link from 'next/link'
 import { formatCurrency } from '@/lib/utils'
 import { useProfile } from '@/context/profile-context'
@@ -35,6 +35,7 @@ interface RecentActivityItem {
 
 interface DashboardStats {
   subscriptionTotal: number
+  variableExpenseTotal: number
   productCount: number
   avgMargin: number
   todaySales: number
@@ -58,6 +59,7 @@ export default function DashboardPage() {
   const { profile } = useProfile()
   const [stats, setStats] = useState<DashboardStats>({
     subscriptionTotal: 0,
+    variableExpenseTotal: 0,
     productCount: 0,
     avgMargin: 0,
     todaySales: 0,
@@ -79,6 +81,7 @@ export default function DashboardPage() {
         if (!active) return
         setStats({
           subscriptionTotal: 0,
+          variableExpenseTotal: 0,
           productCount: 0,
           avgMargin: 0,
           todaySales: 0,
@@ -95,6 +98,18 @@ export default function DashboardPage() {
       const { data: products } = await supabase.from('products_roi').select('*').eq('user_id', user.id)
       const subscriptionRows = (subs || []) as SubscriptionRecord[]
       const productRows = (products || []) as ProductRecord[]
+
+      // Gastos variables del mes en curso
+      const now = new Date()
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+      const { data: varExpensesRaw } = await supabase
+        .from('variable_expenses')
+        .select('amount')
+        .eq('user_id', user.id)
+        .gte('expense_date', monthStart)
+      const variableExpenseTotal = (varExpensesRaw || []).reduce(
+        (acc, e) => acc + parseFloat(String(e.amount || 0)), 0
+      )
 
       const sevenDaysAgo = new Date()
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6)
@@ -176,6 +191,7 @@ export default function DashboardPage() {
 
       setStats({
         subscriptionTotal,
+        variableExpenseTotal,
         productCount,
         avgMargin,
         todaySales,
@@ -239,16 +255,27 @@ export default function DashboardPage() {
         />
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
         <StatCard
-          title="Gastos Mensuales"
+          title="Gastos Fijos"
           value={loading ? '...' : formatCurrency(stats.subscriptionTotal, profile?.currency_symbol || '$')}
-          subtitle="Proyectado en suscripciones"
+          subtitle="Proyectado mensual"
           icon={CreditCard}
-          trend="+2.4%"
+          trend="Fijos"
           color="bg-blue-600"
           lightColor="bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400"
         />
+        <Link href="/dashboard/variable-expenses" className="block transition-transform hover:-translate-y-1">
+          <StatCard
+            title="Gastos Variables"
+            value={loading ? '...' : formatCurrency(stats.variableExpenseTotal, profile?.currency_symbol || '$')}
+            subtitle="Egresos del mes actual"
+            icon={TrendingDown}
+            trend="Ver todo"
+            color="bg-orange-500"
+            lightColor="bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400"
+          />
+        </Link>
         <Link href="/dashboard/catalog" className="block transition-transform hover:-translate-y-1">
           <StatCard
             title="Productos Cargados"

@@ -77,3 +77,14 @@ export interface AdminClientRecord {
   sales_count: number
   created_at: string | null
 }
+
+export interface VariableExpenseRecord {
+  id: string
+  user_id: string
+  name: string
+  amount: number | string
+  category: 'shipping' | 'packaging' | 'marketing' | 'supplies' | 'freelance' | 'other'
+  expense_date: string
+  notes: string | null
+  created_at: string | null
+}
