@@ -35,10 +35,10 @@ interface RecentActivityItem {
 
 interface DashboardStats {
   subscriptionTotal: number
-  variableExpenseTotal: number
+  monthlyExpenseTotal: number
   productCount: number
   avgMargin: number
-  todaySales: number
+  monthlySalesTotal: number
   subsByCategory: BreakdownPoint[]
   topProducts: TopProductPoint[]
   recentActivity: RecentActivityItem[]
@@ -59,10 +59,10 @@ export default function DashboardPage() {
   const { profile } = useProfile()
   const [stats, setStats] = useState<DashboardStats>({
     subscriptionTotal: 0,
-    variableExpenseTotal: 0,
+    monthlyExpenseTotal: 0,
     productCount: 0,
     avgMargin: 0,
-    todaySales: 0,
+    monthlySalesTotal: 0,
     subsByCategory: [],
     topProducts: [],
     recentActivity: [],
@@ -81,10 +81,10 @@ export default function DashboardPage() {
         if (!active) return
         setStats({
           subscriptionTotal: 0,
-          variableExpenseTotal: 0,
+          monthlyExpenseTotal: 0,
           productCount: 0,
           avgMargin: 0,
-          todaySales: 0,
+          monthlySalesTotal: 0,
           subsByCategory: [],
           topProducts: [],
           recentActivity: [],
@@ -101,12 +101,13 @@ export default function DashboardPage() {
 
       // Gastos variables del mes en curso
       const now = new Date()
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+      const monthStartDate = monthStart.toISOString().split('T')[0]
       const { data: varExpensesRaw } = await supabase
         .from('variable_expenses')
         .select('amount')
         .eq('user_id', user.id)
-        .gte('expense_date', monthStart)
+        .gte('expense_date', monthStartDate)
       const variableExpenseTotal = (varExpensesRaw || []).reduce(
         (acc, e) => acc + parseFloat(String(e.amount || 0)), 0
       )
@@ -137,16 +138,21 @@ export default function DashboardPage() {
 
       const salesTrend = Object.entries(salesMap).map(([day, total]) => ({ day, total }))
 
-      const todayStart = new Date()
-      todayStart.setHours(0, 0, 0, 0)
-      const todaySales = (salesRaw || [])
-        .filter((sale) => new Date(sale.created_at) >= todayStart)
-        .reduce((acc, sale) => acc + parseFloat(String(sale.total_amount || 0)), 0)
+      const { data: monthlySalesRaw } = await supabase
+        .from('sales_orders')
+        .select('total_amount')
+        .eq('user_id', user.id)
+        .eq('status', 'finalized')
+        .gte('created_at', monthStart.toISOString())
+      const monthlySalesTotal = (monthlySalesRaw || []).reduce(
+        (acc, sale) => acc + parseFloat(String(sale.total_amount || 0)), 0
+      )
 
       const subscriptionTotal = subscriptionRows.reduce((acc, subscription) => {
         const cost = parseFloat(String(subscription.cost))
         return acc + (subscription.billing_cycle === 'yearly' ? cost / 12 : cost)
       }, 0)
+      const monthlyExpenseTotal = subscriptionTotal + variableExpenseTotal
 
       const categoryMap: Record<string, number> = {}
       subscriptionRows.forEach((subscription) => {
@@ -191,10 +197,10 @@ export default function DashboardPage() {
 
       setStats({
         subscriptionTotal,
-        variableExpenseTotal,
+        monthlyExpenseTotal,
         productCount,
         avgMargin,
-        todaySales,
+        monthlySalesTotal,
         subsByCategory,
         topProducts,
         recentActivity,
@@ -250,26 +256,17 @@ export default function DashboardPage() {
         <SetupScreen
           profile={profile}
           productCount={stats.productCount}
-          hasExpenses={stats.subscriptionTotal > 0}
-          hasSales={stats.todaySales > 0 || stats.salesTrend.some((point) => point.total > 0)}
+          hasExpenses={stats.monthlyExpenseTotal > 0}
+          hasSales={stats.monthlySalesTotal > 0 || stats.salesTrend.some((point) => point.total > 0)}
         />
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-        <StatCard
-          title="Gastos Fijos"
-          value={loading ? '...' : formatCurrency(stats.subscriptionTotal, profile?.currency_symbol || '$')}
-          subtitle="Proyectado mensual"
-          icon={CreditCard}
-          trend="Fijos"
-          color="bg-blue-600"
-          lightColor="bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400"
-        />
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Link href="/dashboard/variable-expenses" className="block transition-transform hover:-translate-y-1">
           <StatCard
-            title="Gastos Variables"
-            value={loading ? '...' : formatCurrency(stats.variableExpenseTotal, profile?.currency_symbol || '$')}
-            subtitle="Egresos del mes actual"
+            title="Gastos del Mes"
+            value={loading ? '...' : formatCurrency(stats.monthlyExpenseTotal, profile?.currency_symbol || '$')}
+            subtitle="Fijos + variables"
             icon={TrendingDown}
             trend="Ver todo"
             color="bg-orange-500"
@@ -298,9 +295,9 @@ export default function DashboardPage() {
         />
         <Link href="/dashboard/sales" className="block transition-transform hover:-translate-y-1">
           <StatCard
-            title="Ventas de Hoy"
-            value={loading ? '...' : formatCurrency(stats.todaySales, profile?.currency_symbol || '$')}
-            subtitle="Entrada de caja"
+            title="Ventas del Mes"
+            value={loading ? '...' : formatCurrency(stats.monthlySalesTotal, profile?.currency_symbol || '$')}
+            subtitle="Total vendido este mes"
             icon={ShoppingCart}
             trend="Ver todo"
             color="bg-amber-500"
