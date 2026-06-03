@@ -106,10 +106,10 @@ export default function AdjustStockModal({ product, onClose, onSuccess }: Adjust
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in zoom-in-95 duration-300">
+      <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in zoom-in-95 duration-300 max-h-[90vh] flex flex-col">
         
         {/* Header */}
-        <div className="p-8 pb-6 flex items-center justify-between border-b border-slate-100 dark:border-slate-800">
+        <div className="p-8 pb-6 flex items-center justify-between border-b border-slate-100 dark:border-slate-800 shrink-0">
           <div>
             <h2 className="text-xl font-black text-slate-900 dark:text-white">Ajustar Stock</h2>
             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1 truncate max-w-[220px]">{product.product_name}</p>
@@ -119,13 +119,13 @@ export default function AdjustStockModal({ product, onClose, onSuccess }: Adjust
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Stock Actual</p>
               <p className="text-2xl font-black text-slate-900 dark:text-white">{product.stock_quantity ?? 0}</p>
             </div>
-            <button onClick={onClose} className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
+            <button type="button" onClick={onClose} className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
               <X size={20} />
             </button>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-8 space-y-6">
+        <form onSubmit={handleSubmit} className="p-8 space-y-6 overflow-y-auto">
           {/* Movement Type */}
           <div className="grid grid-cols-3 gap-3">
             {TYPES.map(({ value, label, icon: Icon, color, hint }) => (
