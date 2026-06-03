@@ -82,13 +82,13 @@ export default function RoiForm({ onSuccess }: RoiFormProps) {
             Adquiere la <span className="font-bold text-slate-900 dark:text-white">Licencia Fundador</span> para crear productos ilimitados.
           </p>
           <a
-            href="https://wa.me/59897533210?text=Hola,%20quiero%20adquirir%20la%20Licencia%20Fundador%20de%20BizTracker%20por%20$49"
+            href="https://wa.me/59897533210?text=Hola,%20quiero%20adquirir%20la%20Licencia%20Fundador%20de%20BizTracker%20por%20USD%2049"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-8 py-4 text-sm font-black uppercase tracking-widest text-white shadow-xl shadow-emerald-500/25 transition hover:bg-emerald-700 hover:-translate-y-1"
           >
             <Sparkles size={18} />
-            Desbloquear Licencia Fundador ($49)
+            Desbloquear Licencia Fundador (USD 49)
           </a>
           <p className="mt-4 text-[10px] text-slate-400 font-bold uppercase tracking-widest">Pago único. Sin suscripciones.</p>
         </div>
