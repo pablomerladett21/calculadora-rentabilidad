@@ -331,7 +331,7 @@ export default function SalesLogForm({ onSuccess, mode = 'sale' }: SalesLogFormP
         </div>
 
         <div className="grid grid-cols-3 md:grid-cols-12 gap-3 items-end">
-          <div className="col-span-3 md:col-span-5 space-y-2 relative" ref={dropdownRef}>
+          <div className="col-span-3 md:col-span-4 space-y-2 relative" ref={dropdownRef}>
             <div className="relative group">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={16} />
               <input
@@ -389,7 +389,7 @@ export default function SalesLogForm({ onSuccess, mode = 'sale' }: SalesLogFormP
             </div>
           </div>
 
-          <div className="col-span-1 md:col-span-2 space-y-2">
+          <div className="col-span-1 md:col-span-3 space-y-2">
             <input
               type="number"
               min="1"
