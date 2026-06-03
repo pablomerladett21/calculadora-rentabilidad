@@ -12,7 +12,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
-  const body = await request.json().catch(() => null)
+  let body;
+  try {
+    body = await request.json()
+  } catch (err) {
+    return NextResponse.json({ error: 'JSON malformado o invalido' }, { status: 400 })
+  }
+
   const clientId = body?.clientId
   const billingStatus = normalizeBillingStatus(body?.billingStatus)
 

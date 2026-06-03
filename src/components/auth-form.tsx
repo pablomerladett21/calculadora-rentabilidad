@@ -55,8 +55,14 @@ export default function AuthForm({ type, redirectPath }: AuthFormProps) {
         if (signInError) throw signInError
         window.location.href = redirectPath
       }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Ocurrio un error inesperado')
+    } catch (err: any) {
+      if (err.status === 400 && type === 'login') {
+        setError('Correo o contraseña incorrectos.')
+      } else if (err.status === 422 && type === 'register') {
+        setError('El correo ingresado no es válido o ya está en uso.')
+      } else {
+        setError('Ocurrió un error al procesar tu solicitud. Por favor intenta más tarde.')
+      }
     } finally {
       setLoading(false)
     }

@@ -21,17 +21,27 @@ function normalizeExpenseType(value: string | null | undefined) {
   return 'software'
 }
 
+function parseSafeFloat(val: string | undefined | null, fallback = 0) {
+  const parsed = Number.parseFloat(val || '0')
+  return isNaN(parsed) ? fallback : parsed
+}
+
+function parseSafeInt(val: string | undefined | null, fallback = 0) {
+  const parsed = Number.parseInt(val || '0', 10)
+  return isNaN(parsed) ? fallback : parsed
+}
+
 function buildProductPayloads(rows: Record<string, string>[], userId: string) {
   return rows
     .filter((row) => row.product_name || row.nombre || row.producto)
     .map((row) => {
       const productName = row.product_name || row.nombre || row.producto
-      const materialCost = Number.parseFloat(row.material_cost || row.costo_material || row.costo || '0')
-      const timeInvestedHours = Number.parseFloat(row.time_invested_hours || row.horas || '0')
-      const hourlyRate = Number.parseFloat(row.hourly_rate || row.tarifa_hora || '0')
-      const desiredMarginPercent = Number.parseFloat(row.desired_margin_percent || row.margen || '30')
-      const stockQuantity = Number.parseInt(row.stock_quantity || row.stock || '0', 10)
-      const stockAlertThreshold = Number.parseInt(row.stock_alert_threshold || row.umbral || '5', 10)
+      const materialCost = parseSafeFloat(row.material_cost || row.costo_material || row.costo)
+      const timeInvestedHours = parseSafeFloat(row.time_invested_hours || row.horas)
+      const hourlyRate = parseSafeFloat(row.hourly_rate || row.tarifa_hora)
+      const desiredMarginPercent = parseSafeFloat(row.desired_margin_percent || row.margen, 30)
+      const stockQuantity = parseSafeInt(row.stock_quantity || row.stock, 0)
+      const stockAlertThreshold = parseSafeInt(row.stock_alert_threshold || row.umbral, 5)
       const totalCost = materialCost + (timeInvestedHours * hourlyRate)
       const suggestedPrice = desiredMarginPercent < 100
         ? totalCost / (1 - (desiredMarginPercent / 100))
@@ -69,7 +79,7 @@ function buildSubscriptionPayloads(rows: Record<string, string>[], userId: strin
       return {
         user_id: userId,
         name,
-        cost: Number.parseFloat(row.cost || row.costo || '0'),
+        cost: parseSafeFloat(row.cost || row.costo),
         billing_cycle: normalizeBillingCycle(row.billing_cycle || row.ciclo),
         category: row.category || row.categoria || null,
         expense_type: normalizeExpenseType(row.expense_type || row.tipo_de_gasto || row.tipo),
